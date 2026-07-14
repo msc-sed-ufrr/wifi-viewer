@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+dist-electron/
+*.tsbuildinfo
+*.local
+.DS_Store
+.obsidian/

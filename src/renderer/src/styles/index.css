@@ -1,0 +1,935 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: #6b7280;
+}
+
+/* Project setup */
+.project-setup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.project-setup__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 380px;
+  padding: 32px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.project-setup__form h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.project-setup__hint {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.project-setup__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.project-setup__form input[type='text'],
+.project-setup__form input[type='file'] {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.project-setup__error {
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.project-setup__form button {
+  margin-top: 8px;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.project-setup__form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* App shell (sidebar + workspace) */
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: #111827;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar--collapsed {
+  width: 36px;
+  align-items: center;
+  padding-top: 12px;
+}
+
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.sidebar__header h2 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+
+.sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar__new-project,
+.sidebar__toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: #374151;
+  color: #e5e7eb;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sidebar__new-project {
+  font-size: 16px;
+}
+
+.sidebar__new-project:hover,
+.sidebar__toggle:hover {
+  background: #4b5563;
+}
+
+.sidebar__projects {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  flex: 1;
+}
+
+.sidebar__project {
+  margin-bottom: 12px;
+}
+
+.sidebar__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sidebar__row:hover .sidebar__rename-btn {
+  opacity: 1;
+}
+
+.sidebar__rename-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.sidebar__rename-btn:hover {
+  background: #374151;
+  color: #e5e7eb;
+}
+
+.sidebar__rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 12.5px;
+  color: #111827;
+  background: #f3f4f6;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+}
+
+.sidebar__project-name {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__floor-plans {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar__floor-plan,
+.sidebar__add-floor-plan {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: #d1d5db;
+  border-radius: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__floor-plan {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar__floor-plan:hover,
+.sidebar__add-floor-plan:hover {
+  background: #1f2937;
+}
+
+.sidebar__floor-plan--active,
+.sidebar__floor-plan--active:hover {
+  background: #2563eb;
+  color: white;
+}
+
+.sidebar__add-floor-plan {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  /* Sem isso, um descendente muito largo (ex.: a planta com zoom > 100%, ver ADR-030) empurra
+     este item flex (dentro de .app-shell, eixo principal horizontal) pro tamanho de conteúdo
+     em vez de encolher — e como nada mais na cadeia teria como conter isso, a página inteira
+     "estoura" (ver FloorPlanCanvas). */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #6b7280;
+}
+
+.app-empty button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Workspace */
+.workspace {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.toolbar__title {
+  margin: 0;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 13px;
+}
+
+.toolbar__group select {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+.toolbar__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar__button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.toolbar__button--active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.toolbar__button--danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.workspace__notice {
+  margin: 0;
+  padding: 8px 16px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+}
+
+.workspace__body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Distribuição de canais */
+.channel-chart {
+  flex-shrink: 0;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.channel-chart__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.channel-chart__header:hover {
+  background: #f9fafb;
+}
+
+.channel-chart__chevron {
+  display: inline-block;
+  font-size: 10px;
+  color: #6b7280;
+  transition: transform 0.15s ease;
+}
+
+.channel-chart__chevron--expanded {
+  transform: rotate(90deg);
+}
+
+.channel-chart__hint {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.channel-chart__body {
+  display: flex;
+  flex-wrap: wrap;
+  /* Cada banda tem largura máxima (ver .channel-chart__band) — com só uma banda (ou
+     poucas), sem isso ela fica encostada à esquerda com um vão vazio grande à direita. */
+  justify-content: center;
+  gap: 16px;
+  padding: 4px 16px 16px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.channel-chart__band {
+  /* Largura máxima próxima do viewBox intrínseco do SVG (ver ChannelChart, SVG_WIDTH) — sem
+     isso, com só uma banda visível o item cresce pra ocupar a linha inteira e, como o SVG
+     escala altura+largura juntas pra manter a proporção do viewBox, o gráfico inteiro
+     "infla" (fica gigante e desproporcional) em vez de continuar do mesmo tamanho. */
+  flex: 1 1 360px;
+  min-width: 280px;
+  max-width: 640px;
+}
+
+.channel-chart__band-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.channel-chart__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.channel-chart__gridline {
+  stroke: #f3f4f6;
+  stroke-width: 1;
+}
+
+.channel-chart__axis {
+  stroke: #d1d5db;
+  stroke-width: 1;
+}
+
+.channel-chart__axis-label {
+  font-size: 9px;
+  fill: #9ca3af;
+}
+
+.channel-chart__label {
+  font-size: 9px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+}
+
+.floor-plan-canvas {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: #e5e7eb;
+  padding: 16px;
+}
+
+.floor-plan-canvas__grid {
+  display: grid;
+  grid-template-columns: 28px auto;
+  grid-template-rows: 20px auto;
+}
+
+.floor-plan-canvas__grid--no-rulers {
+  grid-template-columns: 0 auto;
+  grid-template-rows: 0 auto;
+}
+
+.floor-plan-canvas__surface-wrapper {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  line-height: 0;
+}
+
+.point-tooltip {
+  position: absolute;
+  transform: translate(12px, -50%);
+  background: rgba(17, 24, 39, 0.92);
+  color: #f3f4f6;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.point-tooltip__title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.point-tooltip__network {
+  color: #9ca3af;
+  margin-top: -4px;
+}
+
+.point-tooltip__group {
+  margin-bottom: 6px;
+}
+
+.point-tooltip__group:last-child {
+  margin-bottom: 0;
+}
+
+.floor-plan-canvas__surface {
+  /* largura real controlada via style inline (zoom, ver ADR-030) — 100% aqui é só o valor
+     inicial antes do primeiro render calcular o zoom atual. Sem max-width: exceder 100%
+     é exatamente como o zoom > 100% funciona. */
+  width: 100%;
+  height: auto;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: crosshair;
+}
+
+.floor-plan-canvas__surface--calibrating {
+  cursor: cell;
+  outline: 2px dashed #dc2626;
+  outline-offset: 2px;
+}
+
+.floor-plan-canvas__surface--panning {
+  cursor: grabbing;
+}
+
+.zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  z-index: 6;
+}
+
+.zoom-controls button {
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 15px;
+  line-height: 1;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.zoom-controls button:disabled {
+  color: #9ca3af;
+  cursor: default;
+}
+
+.zoom-controls__level {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  min-width: 48px;
+}
+
+.ruler {
+  position: relative;
+  background: #f9fafb;
+}
+
+.ruler--corner {
+  grid-column: 1;
+  grid-row: 1;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ruler--horizontal {
+  grid-column: 2;
+  grid-row: 1;
+  overflow: hidden;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ruler--vertical {
+  grid-column: 1;
+  grid-row: 2;
+  overflow: hidden;
+  border-right: 1px solid #e5e7eb;
+}
+
+.ruler__tick {
+  position: absolute;
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.ruler__tick--h {
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid #cbd5e1;
+  padding-left: 2px;
+}
+
+.ruler__tick--v {
+  left: 0;
+  right: 0;
+  border-top: 1px solid #cbd5e1;
+  padding-left: 2px;
+}
+
+/* Legenda */
+.legend {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
+  font-size: 11px;
+  z-index: 5;
+  cursor: zoom-in;
+  transition:
+    max-width 0.15s ease,
+    max-height 0.15s ease,
+    font-size 0.15s ease,
+    padding 0.15s ease;
+}
+
+.legend--expanded {
+  cursor: zoom-out;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.legend--gradient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend__bar {
+  width: 140px;
+  height: 10px;
+  border-radius: 4px;
+}
+
+.legend--gradient.legend--expanded {
+  gap: 14px;
+  padding: 14px 20px;
+  font-size: 15px;
+}
+
+.legend--gradient.legend--expanded .legend__bar {
+  width: 280px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.point-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  width: 360px;
+  max-height: calc(100% - 32px);
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.point-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.point-panel__header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.point-panel__coords {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.point-panel__header button {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.point-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.point-panel__actions button {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.point-panel__actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.point-panel__delete {
+  color: #b91c1c;
+  border-color: #fecaca !important;
+}
+
+.point-panel__hint {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.point-panel__readings h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.point-panel__readings {
+  overflow-x: auto;
+}
+
+.point-panel__readings table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.point-panel__readings th:nth-child(1),
+.point-panel__readings td:nth-child(1) {
+  width: 26%;
+}
+
+.point-panel__readings th:nth-child(2),
+.point-panel__readings td:nth-child(2) {
+  width: 24%;
+}
+
+.point-panel__readings th:nth-child(3),
+.point-panel__readings td:nth-child(3) {
+  width: 11%;
+}
+
+.point-panel__readings th:nth-child(4),
+.point-panel__readings td:nth-child(4) {
+  width: 11%;
+}
+
+.point-panel__readings th:nth-child(5),
+.point-panel__readings td:nth-child(5) {
+  width: 16%;
+}
+
+.point-panel__readings th:nth-child(6),
+.point-panel__readings td:nth-child(6) {
+  width: 12%;
+}
+
+.point-panel__readings th,
+.point-panel__readings td {
+  text-align: left;
+  padding: 4px;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace__error {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #b91c1c;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 80vw;
+  white-space: pre-line;
+  font-size: 13px;
+}
+
+.workspace__error button {
+  border: none;
+  background: transparent;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Modal (calibração etc.) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.modal {
+  background: white;
+  border-radius: 10px;
+  padding: 24px;
+  width: 340px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.modal input {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.modal__error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.modal__actions button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.modal__actions button[type='submit'] {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+  font-weight: 600;
+}
+
+.modal__actions button.modal__button--danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+  font-weight: 600;
+}
