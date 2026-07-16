@@ -3,6 +3,9 @@ import { createFloorPlan, createProject } from '../modules/projects/api'
 import { loadImageDimensions } from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
 
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
 interface Props {
   /** Ausente = também cria um novo levantamento antes de criar a planta. */
   project?: Project
@@ -16,6 +19,29 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  function handleFileChange(selectedFile: File | null): void {
+    setError(null)
+  
+    if (!selectedFile) {
+      setFile(null)
+      return
+    }
+  
+    if (!ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+      setFile(null)
+      setError('Formato inválido. Use PNG, JPG, JPEG ou WEBP.')
+      return
+    }
+  
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      setFile(null)
+      setError('A imagem deve ter no máximo 10 MB.')
+      return
+    }
+  
+    setFile(selectedFile)
+  }
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault()
@@ -73,7 +99,11 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
         <label>
           Imagem da planta
-          <input type="file" accept="image/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          <input
+  type="file"
+  accept=".png,.jpg,.jpeg,.webp"
+  onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+/>
         </label>
 
         {error && <p className="modal__error">{error}</p>}
