@@ -6,3 +6,9 @@ dist-electron/
 *.local
 .DS_Store
 .obsidian/
+.code-review-graph/
+.claude/
+.mcp.json
+.opencode
+.vscode
+CLAUDE.md

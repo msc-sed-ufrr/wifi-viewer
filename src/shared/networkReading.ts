@@ -1,7 +1,6 @@
 /**
  * Formato normalizado de uma leitura de rede, comum à importação de CSV
- * (docs/examples/import_wifi_analyzer.csv) e à captura ao vivo via IPC
- * (ver docs/02-arch.md, seção 3.1).
+ * e à captura ao vivo via IPC (ver docs/02-arch.md, seção 3.1).
  */
 export interface NetworkReading {
   /** null para redes com SSID "hidden"/oculto */

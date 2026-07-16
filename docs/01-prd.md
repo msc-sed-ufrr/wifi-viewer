@@ -1,7 +1,5 @@
 # Product Requirements Document — WiFi Viewer
 
-> Termos técnicos e siglas usados neste documento (ex.: SSID, BSSID, dBm, heatmap) estão explicados em [docs/00-glossary.md](00-glossary.md).
-
 ## 1. Contexto
 
 WiFi Viewer é um aplicativo desktop (Electron) para uso pessoal que transforma leituras de varredura Wi-Fi (importadas de arquivos de scan ou capturadas ao vivo) em um **heatmap de cobertura** sobreposto à planta de um prédio. O usuário marca manualmente, sobre a imagem da planta, o ponto onde cada leitura está sendo coletada; o sistema interpola essas leituras para gerar mapas de calor por rede (SSID/BSSID), permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes — de forma semelhante a ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso acadêmico.
@@ -21,6 +19,58 @@ WiFi Viewer **não** é uma ferramenta de administração de rede: não configur
 ## 3. Problema
 
 Ferramentas de varredura Wi-Fi (ex.: WiFi Analyzer) produzem tabelas densas de SSIDs, BSSIDs, força de sinal, canal e distância estimada — mas nenhum contexto espacial. Para entender *onde* a cobertura falha dentro de um prédio, o usuário precisa cruzar mentalmente dezenas de linhas de dados com a planta física do local, o que não escala além de poucos pontos de medição e não revela padrões (zonas mortas, sobreposição de canais entre APs vizinhos, redes ocultas concorrentes). Soluções comerciais de site survey (NetSpot, Ekahau) resolvem isso, mas são pagas, voltadas a uso profissional/corporativo e não pensadas para um levantamento pontual e individual de um único prédio ou residência.
+
+### Panorama Competitivo
+
+#### Concorrentes comerciais
+
+| Produto | Modelo | Preço (aprox.) | Plataforma | Diferenciais-chave |
+| --- | --- | --- | --- | --- |
+| Ekahau Connect | Enterprise (Accenture) | ~US$3.000/ano + hardware | Win/Mac + iOS/Android | AI Pro planning, Sidekick 2 (HW), cloud sync, integrações com APIs de fabricante, WiFi 7 |
+| NetSpot | Prosumer pago | US$49–149 | Win/Mac + Android | 20+ tipos de heatmap, planning mode, active survey (iPerf), report builder |
+| Acrylic Wi-Fi Heatmaps | Profissional pago | US$99–499 | Windows | WiFi 7, sniffer, spectrum analysis, BLE analyzer |
+| Acrylic Wi-Fi Analyzer | Profissional pago | US$49–199 | Windows | Troubleshooting ao vivo, detecção de APs, métricas de performance |
+| TamoGraph Site Survey | Profissional pago | ~US$1.000 | Windows | Site survey enterprise completo |
+
+#### Concorrentes open-source
+
+| Projeto | Estrelas | Stack | Funcionalidades |
+| --- | --- | --- | --- |
+| python-wifi-survey-heatmap (jantman) | ~480 | Python, CLI | Survey Linux-only, heatmap matplotlib |
+| wifi-planner (mmereu) | ~1 | React + FastAPI + Docker | AP placement, predição de sinal, paredes, AI wall detection |
+| wifi-heatmap (ribaldorafael) | ~1 | Python/Flask | Survey multi-plataforma, mesh support |
+| WiFi Viewer (este projeto) | — | Electron + React + Vite | O mais completo tecnicamente entre os open-source |
+
+No espaço open-source, o WiFi Viewer é hoje o único projeto que combina simultaneamente captura ao vivo nativa multi-SO (Windows/Linux/macOS), heatmap IDW em Web Worker, UI desktop em React e persistência 100% local — alternativas como `python-wifi-survey-heatmap` (CLI, Linux-only), `wifi-planner` (foco em predição/AI wall detection, sem captura ao vivo multi-SO) e `wifi-heatmap` não reúnem esse conjunto.
+
+#### Matriz de gaps vs. concorrentes comerciais
+
+| Funcionalidade | Ekahau | NetSpot | Acrylic | WiFi Viewer |
+| --- | --- | --- | --- | --- |
+| Heatmap por SSID | ✅ | ✅ | ✅ | ✅ |
+| Calibração de escala | ✅ | ✅ | ✅ | ✅ |
+| Captura ao vivo | ✅ (Sidekick) | ✅ | ✅ | ✅ |
+| Múltiplas plantas | ✅ | ✅ | ✅ | ✅ |
+| Gráfico de canais | ✅ | ✅ | ✅ | ✅ |
+| Planning preditivo (AP placement) | ✅ | ✅ | ✅ | ❌ |
+| Active survey (throughput) | ✅ | ✅ | ❌ | ❌ |
+| Export relatório PDF | ✅ | ✅ | ✅ | ❌ |
+| Suporte 6GHz / WiFi 6E-7 | ✅ | ✅ | ✅ | ❌ |
+| App mobile de coleta | ✅ | ✅ | ❌ | ❌ |
+| Cloud sync / colaboração | ✅ | ❌ | ❌ | ❌ |
+| Integração APIs de fabricante | ✅ | ❌ | ❌ | ❌ |
+| Auto-positioning (GPS/fingerprint) | ✅ | ❌ | ❌ | ❌ |
+
+Gaps aceitos deliberadamente frente às ferramentas comerciais (orientam o backlog na Seção 9, não são compromisso de paridade): planning preditivo de AP, active survey de throughput, export de relatório PDF, suporte a 6GHz/WiFi 6E-7, app mobile de coleta, cloud sync/colaboração, integração com APIs de fabricante e auto-positioning — os três últimos, em particular, tensionam com os não-objetivos da Seção 11 e exigiriam uma decisão explícita de mudança de escopo antes de entrar em desenvolvimento.
+
+#### Critérios de priorização do roadmap
+
+Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
+
+1. **Valor de usuário**: o quanto a funcionalidade melhora a experiência de uso.
+2. **Diferenciação**: o quanto nos destaca de outros open-source.
+3. **Esforço de implementação**: estimativa de complexidade técnica.
+4. **Dependências**: o que precisa estar pronto antes.
 
 ---
 
@@ -209,21 +259,50 @@ Ferramentas de varredura Wi-Fi (ex.: WiFi Analyzer) produzem tabelas densas de S
 
 ## 9. Roadmap
 
-### Current state (julho 2026)
-App Electron funcional: criação de levantamento, upload de planta, importação de CSV, marcação/remoção de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta.
+### Estado atual (julho 2026)
+App Electron funcional: criação de levantamento, upload de planta, importação de CSV, marcação/remoção de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não fecha os gaps de UC-004 (reposicionar ponto) nem oferece export/relatório — ver Panorama Competitivo na Seção 3.
 
-### Short term (próximas semanas)
-- Reposicionar ponto por arraste (parte restante do UC-004).
-- Visão por BSSID individual dentro de um SSID agrupado (drill-down explícito).
-- Exclusão de levantamento/planta pela sidebar (hoje só é possível criar, não remover).
+O roadmap abaixo unifica as pendências herdadas do MVP com as fases de evolução mapeadas a partir do panorama competitivo (Seção 3); legenda de esforço: **P** (dias) · **M** (1–2 semanas) · **G** (2–4 semanas) · **GG** (1–3 meses).
 
-### Medium term (próximo trimestre)
-- Visão de canais/interferência dedicada (UC-006) além do filtro de banda já existente.
-- Export/import de projeto como bundle (ADR-005), ainda não implementado.
+### Fase 1 — Core Mature (v0.2.0)
+Fecha pendências do MVP e funcionalidades essenciais para o app ficar comparável a ferramentas comerciais básicas.
 
-### Long term
-- Comparação entre levantamentos ao longo do tempo (evolução da cobertura).
-- Empacotamento de instaladores assinados/notarizados, caso surja necessidade de distribuir o app para outras máquinas.
+| # | Item | Descrição | Esforço | Prioridade |
+| --- | --- | --- | --- | --- |
+| 1 | Reposicionar ponto por arraste | Parte restante do UC-004 (hoje só dá pra remover e recriar) | P | Alta |
+| 2 | Visão por BSSID individual | Drill-down explícito dentro de um SSID agrupado | P | Alta |
+| 3 | Excluir levantamento/planta pela sidebar | Hoje só é possível criar, não remover | P | Média |
+| 4 | Export heatmap PNG/PDF | Salvar heatmap como imagem ou relatório básico | M | Alta |
+| 5 | Suporte à banda 6GHz (WiFi 6E/7) | Canalização + heatmap para a banda de 6GHz | P | Alta |
+| 6 | Visão de canais/interferência dedicada | Além do filtro de banda já existente (UC-006) | G | Média |
+| 7 | Otimização de performance do IDW | Spatial index (kd-tree) para acelerar a grade | M | Média |
+| 8 | Dark mode / temas | Suporte a tema escuro | P | Baixa |
+| 9 | Exportar leituras para CSV | Exportar dados brutos de um ponto/projeto | P | Baixa |
+
+### Fase 2 — Advanced Features (v0.3.0)
+Funcionalidades que tornam o app útil para profissionais de rede.
+
+| # | Item | Descrição | Esforço | Prioridade |
+| --- | --- | --- | --- | --- |
+| 10 | Export/import de projeto como bundle | Portabilidade entre máquinas (ADR-005, decidido mas ainda não implementado) | M | Média |
+| 11 | Modo de planejamento preditivo | Colocar APs virtuais na planta e simular cobertura | GG | Alta |
+| 12 | Active survey (iPerf3) | Teste de throughput integrado | G | Alta |
+| 13 | Suporte a múltiplos formatos de CSV | Parser flexível para diferentes ferramentas de origem | M | Média |
+| 14 | Relatório customizável em PDF | Relatório profissional com heatmaps e tabelas | G | Média |
+| 15 | Comparação entre levantamentos | Comparar antes/depois de mudanças na rede ao longo do tempo | G | Média |
+| 16 | Internacionalização (i18n) | Suporte a múltiplos idiomas | M | Baixa |
+
+### Fase 3 — Scale (v1.0.0)
+Escala para uso em equipe/ambientes maiores. A maioria destes itens exige revisitar deliberadamente decisões de escopo já tomadas (Seções 1 e 11) antes de entrar em desenvolvimento — não são extensões incrementais do produto atual.
+
+| # | Item | Descrição | Esforço | Prioridade | Nota de escopo |
+| --- | --- | --- | --- | --- | --- |
+| 17 | App mobile companion | Coleta de dados via celular (React Native) | G | Média | Fora de escopo "nesta fase" (Seção 11); reavaliar quando/se o produto crescer além de uso pessoal |
+| 18 | Cloud sync auto-hospedável | Sincronizar projetos entre máquinas | GG | Média | Exige backend — conflita com [ADR-001](02-arch.md#adr-001--arquitetura-client-only-sem-backend-remoto) ("sem backend remoto por padrão" em docs/02-arch.md); tratar como mudança arquitetural deliberada |
+| 19 | Integração com APIs de fabricante | Unifi, Cisco Meraki, Mikrotik | G | Baixa | Risco de deslizar para "administração de rede", explicitamente fora de escopo (Seção 1) — escopo restrito a leitura, nunca configuração |
+| 20 | Sistema de plugins | API para extensões da comunidade | GG | Baixa | — |
+| 21 | Auto-positioning (fingerprinting por RSSI) | Posicionamento automático de ponto/AP | GG | Baixa | **Conflita diretamente** com o não-objetivo "não realiza posicionamento indoor automático" (Seções 1 e 11) — exige decisão explícita de mudança de escopo, não é evolução natural do produto |
+| 22 | Instaladores assinados/notarizados | macOS Gatekeeper / Windows SmartScreen | M | Baixa | Só se surgir necessidade real de distribuir o app a terceiros (Seção 11) |
 
 ---
 

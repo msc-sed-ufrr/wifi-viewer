@@ -4,9 +4,8 @@ Aplicativo desktop (Electron) para uso individual e acadêmico que transforma le
 
 Funciona de forma parecida com ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso individual/acadêmico — sem conta, sem nuvem, sem custo.
 
-![Heatmap do 1º piso do CIT - UFRR filtrado para a banda 2.4GHz](docs/case-studies/images/cit-piso1-heatmap-2-4ghz.png)
+![Heatmap do 1º piso do CIT - UFRR filtrado para a banda 2.4GHz](docs/images/cit-piso1-heatmap-2-4ghz.png)
 
-> Exemplo real de uso está documentado em [docs/03-case-study.md](docs/03-case-study.md).
 
 ## O que o app faz
 
@@ -60,15 +59,9 @@ Se o mecanismo de varredura não estiver disponível no seu sistema, o app orien
 | --- | --- |
 | [docs/01-prd.md](docs/01-prd.md) | O quê o produto faz e por quê: personas, problema, regras de negócio, casos de uso, riscos e roadmap |
 | [docs/02-arch.md](docs/02-arch.md) | Como o produto é construído por dentro: componentes, fluxo de dados, stack e histórico de decisões técnicas (ADRs) |
-| [docs/03-case-study.md](docs/03-case-study.md) | Levantamentos reais feitos com o app, usados para validar o heatmap e a visão de canais |
-| [docs/00-glossary.md](docs/00-glossary.md) | Glossário de termos técnicos e siglas (SSID, BSSID, dBm, IDW etc.) usados nos demais documentos |
 
 ## Estado atual
 
 Projeto em fase de POC (Prova de Conceito), funcional de ponta a ponta: criação de levantamento, upload de planta, importação de CSV, marcação/remoção de pontos, captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes", filtro por banda, calibração de escala e navegação entre múltiplos levantamentos/plantas. Testado manualmente de ponta a ponta.
 
 Detalhes de escopo, blockers e roadmap em [docs/01-prd.md](docs/01-prd.md#5-escopo).
-
-## Projeto Acadêmico
-
-Em fase de formalização do processo de desenvolvimento, PR/Review devem ser seguidos nas próximas fases.

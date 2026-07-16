@@ -21,4 +21,4 @@
 - [ ] `npm run typecheck` sem erros
 - [ ] `npm test` passando
 - [ ] Testes novos adicionados (se aplicável)
-- [ ] PR target é `staging`
+- [ ] PR target é `develop` (ou `main`/`develop` se for `release/*`/`hotfix/*`)

@@ -1,9 +1,9 @@
 import type { NetworkReading } from '@shared/networkReading'
 
 /**
- * Formato de referência (ver docs/examples/import_wifi_analyzer.csv e PRD,
- * regra de negócio "Importação de dados"). Contagem/ordem de colunas fora
- * disso é rejeitada com erro explícito — sem parsing heurístico.
+ * Formato de referência (ver PRD, regra de negócio "Importação de dados").
+ * Contagem/ordem de colunas fora disso é rejeitada com erro explícito —
+ * sem parsing heurístico.
  */
 const REFERENCE_HEADER = [
   'Time Stamp',

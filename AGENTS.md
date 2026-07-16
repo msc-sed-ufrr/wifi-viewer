@@ -2,17 +2,9 @@
 
 ## Sobre
 
-Aplicativo desktop (Electron + React + TypeScript) para criar heatmaps de cobertura Wi-Fi sobrepostos à planta de um prédio. Persistência local via IndexedDB, cálculo de heatmap via IDW em Web Worker.
+Aplicativo desktop (Electron + React + TypeScript) para criar heatmaps de cobertura Wi-Fi sobrepostos à planta de um prédio.
 
-## Stack
-
-- **Desktop**: Electron 31 + electron-vite
-- **Frontend**: React 18 + TypeScript + Vite
-- **Estado**: Zustand (mínimo — ponto e rede selecionados)
-- **Persistência**: IndexedDB (via `idb`)
-- **Heatmap**: IDW (Inverse Distance Weighting) em Web Worker
-- **Gráfico canais**: SVG nativo (sem lib externa)
-- **Testes**: Vitest
+Contexto de produto (personas, regras de negócio, casos de uso, roadmap) em [docs/01-prd.md](docs/01-prd.md). Arquitetura técnica completa (componentes, stack, fluxo de dados, módulos de domínio, ADRs) em [docs/02-arch.md](docs/02-arch.md).
 
 ## Estrutura
 
@@ -44,39 +36,50 @@ src/
 
 ## Gitflow
 
-O projeto segue este fluxo de branches:
+O projeto segue o modelo padrão de mercado ([Gitflow, Vincent Driessen](https://nvie.com/posts/a-successful-git-branching-model/)):
 
 ```
-main     ────────────●──────────●────── (produção, releases)
-                      ↑          ↑
-                      │          │ PR merge
-staging  ─────●──────●──────●────●────── (pré-produção, base de features)
-              ↑      ↑      ↑
-              │      │      │ PR merge
-feature/*  ──┘      │      │
-                     │      │
-dev      ────────────┴──────┴─────────── (homologação isolada)
+main      ──────────────●────────────────────●──────── (produção, tags semânticas)
+                         ↑                    ↑
+                         │ merge release/*    │ merge hotfix/*
+release/*        ●──────┘                    │
+                  ↑                           │
+develop   ───●───●───●────●──────●────────────●──────── (integração, base de features)
+              ↑       ↑    ↑                   │
+              │       │    │ merge release/*   │ merge hotfix/*
+feature/*  ──┘       │    │                    │
+hotfix/*   ──────────┴────┴────────────────────┘ (nasce de main, volta p/ main + develop)
 ```
 
 ### Regras
 
-- **`main`**: código em produção. Apenas recebe merge de PRs vindos de `staging`. Cada release recebe uma tag semântica (`v0.1.0`, `v0.2.0`, etc).
-- **`staging`**: **base de TODAS as feature branches**. Código em pré-produção. PRs de `feature/*` são mergeados aqui após aprovação.
-- **`dev`**: ambiente de homologação isolado. Serve para testar combinações de features. **NUNCA fazer merge de `dev` em feature branches nem em `staging`/`main`.**
-- **`feature/*`**: branches de trabalho. Nome padrão: `feature/<descricao-curta>` (ex.: `feature/export-png-heatmap`). Nascem de `staging` e são mergeadas de volta em `staging` via PR.
+- **`main`**: código em produção. Recebe merge apenas de `release/*` (fim de ciclo) ou `hotfix/*` (correção urgente). Todo merge em `main` recebe uma tag semântica (`v0.1.0`, `v0.2.0`, etc).
+- **`develop`**: branch de integração, **base de TODAS as feature branches**. PRs de `feature/*` são mergeados aqui após aprovação.
+- **`feature/*`**: branches de trabalho. Nome padrão: `feature/<descricao-curta>` (ex.: `feature/export-png-heatmap`). Nascem de `develop` e voltam para `develop` via PR.
+- **`release/*`**: preparação de release. Nome padrão: `release/<versao>` (ex.: `release/0.2.0`). Nascem de `develop` quando o conjunto de features do ciclo fecha; só recebem bugfix, ajuste de versão ou docs — não novas features. Ao concluir: merge em `main` (com tag) e de volta em `develop`.
+- **`hotfix/*`**: correção urgente em produção. Nome padrão: `hotfix/<descricao-curta>`. Nascem de `main`; ao concluir, merge de volta em `main` (nova tag) e em `develop`, para não perder a correção no próximo release.
 
 ### Fluxo de Desenvolvimento
 
-1. Criar branch a partir de `staging`:
+**Feature** (caso comum):
+1. Criar branch a partir de `develop`:
    ```bash
-   git checkout staging
-   git pull origin staging
+   git checkout develop
+   git pull origin develop
    git checkout -b feature/minha-feature
    ```
 2. Desenvolver e commitar na feature branch
-3. Abrir Pull Request para `staging`
-4. Após aprovação, mergear em `staging`
-5. Periodicamente, criar PR de `staging` → `main` para release
+3. Abrir Pull Request para `develop`
+4. Após aprovação, mergear em `develop`
+
+**Release**:
+1. `develop` com o conjunto de features do ciclo fechado: `git checkout -b release/x.y.z develop`
+2. Só ajustes finais na branch de release (versão, changelog, bugfix pontual)
+3. Merge em `main`, tag `vX.Y.Z`, merge de volta em `develop`
+
+**Hotfix**:
+1. Bug crítico em produção: `git checkout -b hotfix/descricao main`
+2. Corrigir, mergear em `main` (nova tag de patch) e em `develop`
 
 ### Convenções
 
