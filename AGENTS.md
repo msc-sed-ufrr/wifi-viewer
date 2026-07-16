@@ -38,17 +38,32 @@ src/
 
 O projeto segue o modelo padrão de mercado ([Gitflow, Vincent Driessen](https://nvie.com/posts/a-successful-git-branching-model/)):
 
-```
-main      ──────────────●────────────────────●──────── (produção, tags semânticas)
-                         ↑                    ↑
-                         │ merge release/*    │ merge hotfix/*
-release/*        ●──────┘                    │
-                  ↑                           │
-develop   ───●───●───●────●──────●────────────●──────── (integração, base de features)
-              ↑       ↑    ↑                   │
-              │       │    │ merge release/*   │ merge hotfix/*
-feature/*  ──┘       │    │                    │
-hotfix/*   ──────────┴────┴────────────────────┘ (nasce de main, volta p/ main + develop)
+```mermaid
+gitGraph
+    commit id: "init"
+    branch develop
+    checkout develop
+    commit id: "setup"
+    branch feature/export-png-heatmap
+    checkout feature/export-png-heatmap
+    commit id: "feature work"
+    checkout develop
+    merge feature/export-png-heatmap
+    branch release/0.2.0
+    checkout release/0.2.0
+    commit id: "bump version"
+    checkout main
+    merge release/0.2.0 tag: "v0.2.0"
+    checkout develop
+    merge release/0.2.0
+    checkout main
+    branch hotfix/critical-fix
+    checkout hotfix/critical-fix
+    commit id: "fix"
+    checkout main
+    merge hotfix/critical-fix tag: "v0.2.1"
+    checkout develop
+    merge hotfix/critical-fix
 ```
 
 ### Regras
