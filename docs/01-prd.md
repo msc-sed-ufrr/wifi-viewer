@@ -93,7 +93,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Definição de requisitos (este PRD)  | ✅ 100% | —                                                                                                                                                                     |
 | Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001)                                                                                                                   |
 | Importação de CSV de scan           | ✅ 100% | Validação estrita do formato de referência (UC-002)                                                                                                                   |
-| Marcação manual de pontos na planta | 🔶 80% | Criar/selecionar/remover pontos e resetar todos de uma vez funcionam; reposicionar por arraste (UC-004) ainda não                                                     |
+| Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez e reposicionar por arraste (UC-004) funcionam                                                               |
 | Captura ao vivo                     | ✅ 100% | Nativa via processo principal do Electron (IPC) em Windows/Linux. No macOS depende de `macwifi-cli` (ferramenta externa via Homebrew) — ver docs/02-arch.md (ADR-010) |
 | Geração de heatmap                  | ✅ 100% | IDW clássico (potência) pro valor + confiança gaussiana separada pra opacidade, gradiente contínuo sem bandas, legenda dBm→cor térmica (ADR-024/028/029)              |
 | Visualização por SSID / por BSSID   | 🔶 70% | Agrupamento por SSID + visão "todas as redes" (cores por rede) prontos; drill-down explícito por BSSID individual dentro de um SSID ainda não                         |
@@ -205,7 +205,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 - Heatmap é recalculado automaticamente após a alteração.
 - Remoção de um ponto remove todas as leituras associadas a ele.
 - Remoção em lote ("resetar pontos") exige confirmação explícita antes de executar, por ser destrutiva e irreversível.
-- Reposicionar um ponto por arraste ainda não implementado (dá para remover e recriar).
+- Reposicionar um ponto: clique-e-arraste começando em cima do marcador move o ponto (com preview ao vivo); a posição só é persistida ao soltar, e o ponto nunca sai dos limites da planta.
 
 ---
 
@@ -260,7 +260,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 ## 9. Roadmap
 
 ### Estado atual (julho 2026)
-App Electron funcional: criação de levantamento, upload de planta, importação de CSV, marcação/remoção de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não fecha os gaps de UC-004 (reposicionar ponto) nem oferece export/relatório — ver Panorama Competitivo na Seção 3.
+App Electron funcional: criação de levantamento, upload de planta, importação de CSV, marcação/remoção/reposicionamento de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não oferece export/relatório — ver Panorama Competitivo na Seção 3.
 
 O roadmap abaixo unifica as pendências herdadas do MVP com as fases de evolução mapeadas a partir do panorama competitivo (Seção 3); legenda de esforço: **P** (dias) · **M** (1–2 semanas) · **G** (2–4 semanas) · **GG** (1–3 meses).
 
@@ -269,7 +269,7 @@ Fecha pendências do MVP e funcionalidades essenciais para o app ficar comparáv
 
 | # | Item | Descrição | Esforço | Prioridade |
 | --- | --- | --- | --- | --- |
-| 1 | Reposicionar ponto por arraste | Parte restante do UC-004 (hoje só dá pra remover e recriar) | P | Alta |
+| 1 | ~~Reposicionar ponto por arraste~~ ✅ | Concluído (julho 2026) — arraste do marcador na planta, ver ADR-032 | P | Alta |
 | 2 | Visão por BSSID individual | Drill-down explícito dentro de um SSID agrupado | P | Alta |
 | 3 | Excluir levantamento/planta pela sidebar | Hoje só é possível criar, não remover | P | Média |
 | 4 | Export heatmap PNG/PDF | Salvar heatmap como imagem ou relatório básico | M | Alta |

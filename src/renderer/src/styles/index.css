@@ -568,6 +568,10 @@ body {
   cursor: grabbing;
 }
 
+.floor-plan-canvas__surface--dragging-point {
+  cursor: move;
+}
+
 .zoom-controls {
   position: absolute;
   bottom: 16px;
