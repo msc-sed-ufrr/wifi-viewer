@@ -19,6 +19,7 @@ interface Props {
   pointReadingById: Map<string, StoredNetworkReading>
   onSelectPoint: (id: string) => void
   onCreatePoint: (x: number, y: number) => void
+  onMovePoint: (id: string, x: number, y: number) => void
   /** Modo de calibração: cliques marcam pontos de referência em vez de criar/selecionar pontos de medição. */
   calibrating: boolean
   pendingCalibrationPoints: Array<{ x: number; y: number }>
@@ -49,6 +50,8 @@ interface DragState {
   startScrollLeft: number
   startScrollTop: number
   moved: boolean
+  /** Ponto sob o cursor no `mousedown` — se presente, o arraste reposiciona o ponto em vez de fazer pan (UC-004). */
+  pointId: string | null
 }
 
 export function FloorPlanCanvas({
@@ -59,6 +62,7 @@ export function FloorPlanCanvas({
   pointReadingById,
   onSelectPoint,
   onCreatePoint,
+  onMovePoint,
   calibrating,
   pendingCalibrationPoints,
   onCalibrationClick
@@ -71,6 +75,12 @@ export function FloorPlanCanvas({
   const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [isPanning, setIsPanning] = useState(false)
+  /**
+   * Posição ao vivo do ponto sendo arrastado — só visual, durante o arraste. A posição
+   * persistida (via onMovePoint) só muda no `mouseup`; até lá o marcador segue o cursor
+   * sem regravar o IndexedDB nem recalcular o heatmap a cada `mousemove`.
+   */
+  const [dragPreview, setDragPreview] = useState<{ id: string; x: number; y: number } | null>(null)
   const heatmapBitmap = useHeatmap(heatmapInput, floorPlan.imageWidth, floorPlan.imageHeight)
   const renderedSize = useElementSize(canvasRef)
   /**
@@ -123,9 +133,10 @@ export function FloorPlanCanvas({
 
     points.forEach((point, index) => {
       const isSelected = point.id === selectedPointId
+      const { x, y } = dragPreview?.id === point.id ? dragPreview : point
 
       ctx.beginPath()
-      ctx.arc(point.x, point.y, POINT_RADIUS, 0, Math.PI * 2)
+      ctx.arc(x, y, POINT_RADIUS, 0, Math.PI * 2)
       ctx.fillStyle = isSelected ? '#2563eb' : '#111827'
       ctx.fill()
       ctx.lineWidth = 2
@@ -135,19 +146,19 @@ export function FloorPlanCanvas({
       ctx.font = `bold ${POINT_RADIUS}px sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(String(index + 1), point.x, point.y)
+      ctx.fillText(String(index + 1), x, y)
 
       const reading = pointReadingById.get(point.id)
       if (reading) {
         const label = `(${reading.signalDbm})`
-        const labelX = point.x + POINT_RADIUS + 4
+        const labelX = x + POINT_RADIUS + 4
         ctx.font = `${POINT_RADIUS}px sans-serif`
         ctx.textAlign = 'left'
         ctx.lineWidth = 3
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-        ctx.strokeText(label, labelX, point.y)
+        ctx.strokeText(label, labelX, y)
         ctx.fillStyle = '#111827'
-        ctx.fillText(label, labelX, point.y)
+        ctx.fillText(label, labelX, y)
       }
     })
 
@@ -181,6 +192,7 @@ export function FloorPlanCanvas({
     image,
     points,
     selectedPointId,
+    dragPreview,
     heatmapBitmap,
     pointReadingById,
     pendingCalibrationPoints,
@@ -200,21 +212,36 @@ export function FloorPlanCanvas({
     }
   }
 
+  function findPointAt(x: number, y: number): MeasurementPoint | undefined {
+    return points.find((point) => Math.hypot(point.x - x, point.y - y) <= POINT_HIT_RADIUS)
+  }
+
+  /** Mantém o ponto arrastado dentro da planta — soltar fora do canvas não pode jogar o ponto pra fora da imagem. */
+  function clampToImage(x: number, y: number): { x: number; y: number } {
+    return {
+      x: Math.min(Math.max(x, 0), floorPlan.imageWidth),
+      y: Math.min(Math.max(y, 0), floorPlan.imageHeight)
+    }
+  }
+
   /**
-   * Clique-e-arraste move a planta (ver ADR-030) em vez de criar/selecionar um ponto —
-   * `mousedown` só guarda o ponto de partida; a decisão entre "foi um clique" ou "foi um
-   * arraste" só acontece no `mouseup`, com base em quanto o cursor se moveu.
+   * Clique-e-arraste move a planta (ver ADR-030) ou, se começar em cima de um ponto,
+   * reposiciona o ponto (UC-004) — `mousedown` só guarda o ponto de partida; a decisão
+   * entre "foi um clique" ou "foi um arraste" só acontece no `mouseup`, com base em
+   * quanto o cursor se moveu.
    */
   function handleMouseDown(event: MouseEvent<HTMLCanvasElement>): void {
     if (event.button !== 0) return
     const scrollEl = scrollRef.current
     if (!scrollEl) return
+    const { x, y } = toImageCoords(event)
     dragStateRef.current = {
       startX: event.clientX,
       startY: event.clientY,
       startScrollLeft: scrollEl.scrollLeft,
       startScrollTop: scrollEl.scrollTop,
-      moved: false
+      moved: false,
+      pointId: calibrating ? null : (findPointAt(x, y)?.id ?? null)
     }
   }
 
@@ -222,7 +249,15 @@ export function FloorPlanCanvas({
     const drag = dragStateRef.current
     dragStateRef.current = null
     setIsPanning(false)
-    if (drag?.moved) return
+    setDragPreview(null)
+    if (drag?.moved) {
+      if (drag.pointId) {
+        const coords = toImageCoords(event)
+        const { x, y } = clampToImage(coords.x, coords.y)
+        onMovePoint(drag.pointId, x, y)
+      }
+      return
+    }
 
     const { x, y } = toImageCoords(event)
     if (calibrating) {
@@ -230,7 +265,7 @@ export function FloorPlanCanvas({
       return
     }
 
-    const hit = points.find((point) => Math.hypot(point.x - x, point.y - y) <= POINT_HIT_RADIUS)
+    const hit = findPointAt(x, y)
     if (hit) {
       onSelectPoint(hit.id)
     } else {
@@ -245,9 +280,15 @@ export function FloorPlanCanvas({
       const dy = event.clientY - drag.startY
       if (!drag.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
         drag.moved = true
-        setIsPanning(true)
+        if (!drag.pointId) setIsPanning(true)
       }
       if (drag.moved) {
+        if (drag.pointId) {
+          const coords = toImageCoords(event)
+          setDragPreview({ id: drag.pointId, ...clampToImage(coords.x, coords.y) })
+          setHoveredPointId(null)
+          return
+        }
         const scrollEl = scrollRef.current
         if (scrollEl) {
           scrollEl.scrollLeft = drag.startScrollLeft - dx
@@ -259,13 +300,13 @@ export function FloorPlanCanvas({
 
     if (calibrating) return
     const { x, y } = toImageCoords(event)
-    const hit = points.find((point) => Math.hypot(point.x - x, point.y - y) <= POINT_HIT_RADIUS)
-    setHoveredPointId(hit?.id ?? null)
+    setHoveredPointId(findPointAt(x, y)?.id ?? null)
   }
 
   function handleMouseLeave(): void {
     dragStateRef.current = null
     setIsPanning(false)
+    setDragPreview(null)
     setHoveredPointId(null)
   }
 
@@ -312,7 +353,7 @@ export function FloorPlanCanvas({
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
               style={{ width: canvasWidth }}
-              className={`floor-plan-canvas__surface${calibrating ? ' floor-plan-canvas__surface--calibrating' : ''}${isPanning ? ' floor-plan-canvas__surface--panning' : ''}`}
+              className={`floor-plan-canvas__surface${calibrating ? ' floor-plan-canvas__surface--calibrating' : ''}${isPanning ? ' floor-plan-canvas__surface--panning' : ''}${dragPreview ? ' floor-plan-canvas__surface--dragging-point' : ''}`}
             />
 
             {hoveredPoint && hoveredReading && (

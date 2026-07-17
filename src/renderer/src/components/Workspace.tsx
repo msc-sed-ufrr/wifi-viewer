@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FloorPlan, FloorPlanCalibration, MeasurementPoint, StoredNetworkReading } from '../types/domain'
-import { createPoint, deleteAllPointsForFloorPlan, deletePoint, listPoints } from '../modules/points/api'
+import { createPoint, deleteAllPointsForFloorPlan, deletePoint, listPoints, movePoint } from '../modules/points/api'
 import { setFloorPlanCalibration } from '../modules/projects/api'
 import { addReadings, listReadingsForFloorPlan } from '../modules/readings/api'
 import {
@@ -150,6 +150,17 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
     selectPoint(point.id)
   }
 
+  /**
+   * Atualiza o estado local antes de persistir — o preview do arraste (FloorPlanCanvas)
+   * é descartado no `mouseup`, então sem a atualização otimista o ponto voltaria à
+   * posição antiga por um instante enquanto o IndexedDB grava e o reload chega.
+   */
+  async function handleMovePoint(id: string, x: number, y: number): Promise<void> {
+    setPoints((prev) => prev.map((point) => (point.id === id ? { ...point, x, y } : point)))
+    await movePoint(id, x, y)
+    await reload()
+  }
+
   async function handleImportCsv(file: File): Promise<void> {
     if (!selectedPointId) return
     try {
@@ -297,6 +308,7 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
           pointReadingById={pointReadingById}
           onSelectPoint={selectPoint}
           onCreatePoint={handleCreatePoint}
+          onMovePoint={handleMovePoint}
           calibrating={calibrating}
           pendingCalibrationPoints={pendingCalibrationPoints}
           onCalibrationClick={handleCalibrationClick}
