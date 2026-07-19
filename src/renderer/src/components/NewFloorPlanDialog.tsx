@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { createFloorPlan, createProject } from '../modules/projects/api'
+import { createPoint } from '../modules/points/api'
+import { addReadings } from '../modules/readings/api'
+import { parseConsolidatedCsv, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
 import { loadImageDimensions } from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
 
@@ -18,6 +21,8 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
   const [floorPlanName, setFloorPlanName] = useState(project ? '' : 'Planta 1')
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [csvGroups, setCsvGroups] = useState<LocatedReadingGroup[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -63,6 +68,39 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     setError(null)
   }
 
+  /**
+   * Parseia na hora, igual à validação da imagem: erro de formato aparece assim que o
+   * arquivo é escolhido, não só depois de "Criar" já ter criado a planta. As posições do
+   * CSV são coordenadas de pixel da imagem original do export — só fazem sentido se a
+   * imagem escolhida acima for a mesma (ver ADR-035).
+   */
+  async function handleCsvFileChange(selectedFile: File | null): Promise<void> {
+    setError(null)
+
+    if (!selectedFile) {
+      setCsvFile(null)
+      setCsvGroups(null)
+      return
+    }
+
+    try {
+      const text = await selectedFile.text()
+      const groups = parseConsolidatedCsv(text)
+      setCsvFile(selectedFile)
+      setCsvGroups(groups)
+    } catch (err) {
+      setCsvFile(null)
+      setCsvGroups(null)
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  function handleRemoveCsvFile(): void {
+    setCsvFile(null)
+    setCsvGroups(null)
+    setError(null)
+  }
+
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault()
 
@@ -85,6 +123,13 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
         width,
         height
       )
+
+      if (csvGroups) {
+        for (const group of csvGroups) {
+          const point = await createPoint(floorPlan.id, group.x, group.y)
+          await addReadings(point.id, group.readings)
+        }
+      }
 
       onCreated(targetProject, floorPlan)
     } catch (err) {
@@ -147,6 +192,33 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
             <button type="button" onClick={handleRemoveFile}>
               Remover imagem
+            </button>
+          </div>
+        )}
+
+        <label>
+          Leituras (CSV, opcional)
+          <input
+            type="file"
+            accept=".csv,.txt"
+            onChange={(event) => handleCsvFileChange(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <p className="modal__hint">
+          Recria os pontos de um CSV consolidado (exportado por planta ou levantamento) —
+          as posições só fazem sentido se a imagem acima for a mesma do export original.
+        </p>
+
+        {csvFile && csvGroups && (
+          <div>
+            <p className="modal__hint">
+              {csvFile.name}: {csvGroups.length}{' '}
+              {csvGroups.length === 1 ? 'ponto encontrado' : 'pontos encontrados'} (
+              {csvGroups.reduce((sum, group) => sum + group.readings.length, 0)} leituras)
+            </p>
+
+            <button type="button" onClick={handleRemoveCsvFile}>
+              Remover CSV
             </button>
           </div>
         )}
