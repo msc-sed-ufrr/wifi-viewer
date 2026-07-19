@@ -259,6 +259,18 @@ body {
   background: #374151;
 }
 
+.sidebar__menu-dropdown button.sidebar__menu-item--danger {
+  margin-top: 4px;
+  padding-top: 7px;
+  border-top: 1px solid #374151;
+  color: #f87171;
+}
+
+.sidebar__menu-dropdown button.sidebar__menu-item--danger:hover {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
 .sidebar__rename-input {
   flex: 1;
   min-width: 0;

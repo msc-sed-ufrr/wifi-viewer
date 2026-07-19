@@ -1,4 +1,5 @@
 import { getDb } from '../storage/db'
+import { deleteAllPointsForFloorPlan } from '../points/api'
 import type { Project, FloorPlan, FloorPlanCalibration } from '../../types/domain'
 
 export async function createProject(name: string): Promise<Project> {
@@ -60,6 +61,13 @@ export async function updateFloorPlan(id: string, name: string): Promise<FloorPl
   const updated: FloorPlan = { ...floorPlan, name }
   await db.put('floorPlans', updated)
   return updated
+}
+
+/** Remove a planta e tudo que depende dela (pontos + leituras, ver deleteAllPointsForFloorPlan) — ação destrutiva, a UI deve confirmar antes de chamar. */
+export async function deleteFloorPlan(id: string): Promise<void> {
+  await deleteAllPointsForFloorPlan(id)
+  const db = await getDb()
+  await db.delete('floorPlans', id)
 }
 
 /** Define (ou limpa, passando undefined) a calibração de escala pixel↔metro da planta. */

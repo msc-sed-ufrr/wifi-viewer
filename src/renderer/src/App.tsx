@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { listFloorPlans, listProjects, updateFloorPlan, updateProject } from './modules/projects/api'
+import { deleteFloorPlan, listFloorPlans, listProjects, updateFloorPlan, updateProject } from './modules/projects/api'
 import { createPoint, listPoints } from './modules/points/api'
 import { addReadings, listReadingsForFloorPlan } from './modules/readings/api'
 import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
@@ -38,6 +38,9 @@ export function App(): JSX.Element {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeFloorPlanId, setActiveFloorPlanId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [deletingFloorPlan, setDeletingFloorPlan] = useState<{ floorPlan: FloorPlan; pointCount: number } | null>(
+    null
+  )
   const [importError, setImportError] = useState<string | null>(null)
   /** Incrementado pra forçar o Workspace da planta ativa a remontar e recarregar pontos/leituras após um import pela sidebar (ver handleImportFloorPlan). */
   const [workspaceReloadNonce, setWorkspaceReloadNonce] = useState(0)
@@ -241,6 +244,40 @@ export function App(): JSX.Element {
     })
   }
 
+  /**
+   * Busca a contagem de pontos na hora (pode ser de uma planta que não é a ativa, então
+   * não dá pra reaproveitar o estado do Workspace) só pra deixar a confirmação informativa
+   * — mesmo padrão do "Resetar pontos" em Workspace.tsx.
+   */
+  async function handleRequestDeleteFloorPlan(floorPlan: FloorPlan): Promise<void> {
+    const points = await listPoints(floorPlan.id)
+    setDeletingFloorPlan({ floorPlan, pointCount: points.length })
+  }
+
+  /**
+   * Modal próprio em vez de window.confirm() — mesmo motivo do ADR-016 (reset de pontos):
+   * no Electron empacotado, o diálogo nativo rouba o foco da janela.
+   */
+  async function handleConfirmDeleteFloorPlan(): Promise<void> {
+    if (!deletingFloorPlan) return
+    const { floorPlan } = deletingFloorPlan
+    setDeletingFloorPlan(null)
+
+    await deleteFloorPlan(floorPlan.id)
+
+    const remaining = (floorPlansByProject.get(floorPlan.projectId) ?? []).filter((fp) => fp.id !== floorPlan.id)
+    setFloorPlansByProject((prev) => {
+      const next = new Map(prev)
+      next.set(floorPlan.projectId, remaining)
+      return next
+    })
+
+    if (floorPlan.id === activeFloorPlanId) {
+      resetSelection()
+      setActiveFloorPlanId(remaining.at(0)?.id ?? null)
+    }
+  }
+
   if (loading) {
     return <div className="app-loading">Carregando…</div>
   }
@@ -264,6 +301,7 @@ export function App(): JSX.Element {
         onExportFloorPlan={handleExportFloorPlan}
         onImportProject={handleImportProject}
         onImportFloorPlan={handleImportFloorPlan}
+        onDeleteFloorPlan={handleRequestDeleteFloorPlan}
       />
 
       <div className="app-main">
@@ -294,6 +332,29 @@ export function App(): JSX.Element {
           onCreated={handleDialogCreated}
           onCancel={() => setDialog(null)}
         />
+      )}
+
+      {deletingFloorPlan && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Excluir planta</h2>
+            <p>
+              Excluir "{deletingFloorPlan.floorPlan.name}"
+              {deletingFloorPlan.pointCount > 0
+                ? ` e ${deletingFloorPlan.pointCount === 1 ? 'seu 1 ponto' : `seus ${deletingFloorPlan.pointCount} pontos`} de medição (com as leituras)`
+                : ''}
+              ? Essa ação não pode ser desfeita.
+            </p>
+            <div className="modal__actions">
+              <button type="button" onClick={() => setDeletingFloorPlan(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="modal__button--danger" onClick={handleConfirmDeleteFloorPlan}>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {importError && (

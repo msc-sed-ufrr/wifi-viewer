@@ -15,6 +15,7 @@ interface Props {
   onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
   onImportProject: (project: Project, file: File) => void
   onImportFloorPlan: (floorPlan: FloorPlan, file: File) => void
+  onDeleteFloorPlan: (floorPlan: FloorPlan) => void
 }
 
 type EditTarget = { kind: 'project'; id: string } | { kind: 'floor-plan'; id: string } | null
@@ -32,7 +33,8 @@ export function Sidebar({
   onExportProject,
   onExportFloorPlan,
   onImportProject,
-  onImportFloorPlan
+  onImportFloorPlan,
+  onDeleteFloorPlan
 }: Props): JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
@@ -253,6 +255,16 @@ export function Sidebar({
                                   }}
                                 >
                                   Exportar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sidebar__menu-item--danger"
+                                  onClick={() => {
+                                    onDeleteFloorPlan(floorPlan)
+                                    setOpenMenuId(null)
+                                  }}
+                                >
+                                  Excluir
                                 </button>
                               </div>
                             )}
