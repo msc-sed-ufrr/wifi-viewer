@@ -61,7 +61,7 @@ export function PointPanel({
 
   function handleExportCsv(): void {
     const label = `Ponto ${index + 1}`
-    const csv = exportReadingsToCsv([{ point, label, readings }])
+    const csv = exportReadingsToCsv([{ floorPlanName: floorPlan.name, point, label, readings }])
     const filename = buildCsvFilename(project.name, floorPlan.name, label)
     downloadTextFile(filename, csv)
   }

@@ -23,7 +23,7 @@ export const REFERENCE_HEADER = [
 ]
 
 /** Colunas extras que exportReadingsToCsv anexa depois de REFERENCE_HEADER (ver csvExporter.ts e consolidatedImport.ts). */
-export const POINT_LOCATION_HEADER = ['Point Label', 'Point X', 'Point Y']
+export const POINT_LOCATION_HEADER = ['Floor Plan', 'Point Label', 'Point X', 'Point Y']
 
 export class CsvImportError extends Error {}
 

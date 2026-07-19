@@ -11,6 +11,8 @@ import { POINT_LOCATION_HEADER, REFERENCE_HEADER } from '../import/csvParser'
 const EXPORT_HEADER = [...REFERENCE_HEADER, ...POINT_LOCATION_HEADER]
 
 export interface PointReadings {
+  /** Nome da planta de origem — repetido em toda linha pra sobreviver a um export que consolida várias plantas (ver App.handleExportProject). */
+  floorPlanName: string
   point: MeasurementPoint
   /** Rótulo de exibição do ponto (ex.: "Ponto 1"), o mesmo usado na UI — não é um id estável. */
   label: string
@@ -38,7 +40,12 @@ function formatTimestamp(iso: string): string {
  * e "802.11mc" ficam em branco: não fazem parte de NetworkReading (csvParser.ts também os
  * ignora na importação), mas a posição é mantida para a contagem de colunas de referência bater.
  */
-function formatRow(reading: StoredNetworkReading, point: MeasurementPoint, label: string): string {
+function formatRow(
+  reading: StoredNetworkReading,
+  point: MeasurementPoint,
+  floorPlanName: string,
+  label: string
+): string {
   const cells = [
     formatTimestamp(reading.capturedAt),
     reading.ssid ?? '',
@@ -54,6 +61,7 @@ function formatRow(reading: StoredNetworkReading, point: MeasurementPoint, label
     reading.security,
     reading.standard ?? '',
     '',
+    floorPlanName,
     label,
     `${point.x}`,
     `${point.y}`
@@ -68,9 +76,9 @@ function formatRow(reading: StoredNetworkReading, point: MeasurementPoint, label
  */
 export function exportReadingsToCsv(pointReadings: PointReadings[]): string {
   const lines = [EXPORT_HEADER.join('|')]
-  for (const { point, label, readings } of pointReadings) {
+  for (const { point, floorPlanName, label, readings } of pointReadings) {
     for (const reading of readings) {
-      lines.push(formatRow(reading, point, label))
+      lines.push(formatRow(reading, point, floorPlanName, label))
     }
   }
   return lines.join('\n')

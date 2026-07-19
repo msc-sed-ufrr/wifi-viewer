@@ -39,43 +39,58 @@ describe('parseConsolidatedCsv', () => {
     const pointA = makePoint({ x: 10, y: 20 })
     const pointB = makePoint({ x: 300, y: 400 })
     const csv = exportReadingsToCsv([
-      { point: pointA, label: 'Ponto 1', readings: [makeReading(), makeReading()] },
-      { point: pointB, label: 'Ponto 2', readings: [makeReading({ ssid: 'RedeB' })] }
+      { floorPlanName: 'Piso 1', point: pointA, label: 'Ponto 1', readings: [makeReading(), makeReading()] },
+      { floorPlanName: 'Piso 1', point: pointB, label: 'Ponto 2', readings: [makeReading({ ssid: 'RedeB' })] }
     ])
 
     const groups = parseConsolidatedCsv(csv)
     expect(groups).toHaveLength(2)
 
     const groupA = groups.find((g) => g.label === 'Ponto 1')
-    expect(groupA).toMatchObject({ x: 10, y: 20 })
+    expect(groupA).toMatchObject({ floorPlanName: 'Piso 1', x: 10, y: 20 })
     expect(groupA?.readings).toHaveLength(2)
 
     const groupB = groups.find((g) => g.label === 'Ponto 2')
-    expect(groupB).toMatchObject({ x: 300, y: 400 })
+    expect(groupB).toMatchObject({ floorPlanName: 'Piso 1', x: 300, y: 400 })
     expect(groupB?.readings).toHaveLength(1)
     expect(groupB?.readings[0].ssid).toBe('RedeB')
   })
 
-  it('groups rows by (x, y) position, not by label', () => {
+  it('groups rows by (floor plan, x, y) position, not by label', () => {
     const point = makePoint({ x: 50, y: 60 })
     const csv = exportReadingsToCsv([
-      { point, label: 'Ponto 1', readings: [makeReading()] },
-      { point, label: 'Ponto 1', readings: [makeReading({ ssid: 'RedeB' })] }
+      { floorPlanName: 'Piso 1', point, label: 'Ponto 1', readings: [makeReading()] },
+      { floorPlanName: 'Piso 1', point, label: 'Ponto 1', readings: [makeReading({ ssid: 'RedeB' })] }
     ])
     const groups = parseConsolidatedCsv(csv)
     expect(groups).toHaveLength(1)
     expect(groups[0].readings).toHaveLength(2)
   })
 
+  it('keeps points at the same (x, y) in different floor plans as separate groups', () => {
+    const point = makePoint({ x: 50, y: 60 })
+    const csv = exportReadingsToCsv([
+      { floorPlanName: 'Piso 1', point, label: 'Ponto 1', readings: [makeReading()] },
+      { floorPlanName: 'Piso 2', point, label: 'Ponto 1', readings: [makeReading({ ssid: 'RedeB' })] }
+    ])
+    const groups = parseConsolidatedCsv(csv)
+    expect(groups).toHaveLength(2)
+    expect(groups.map((g) => g.floorPlanName).sort()).toEqual(['Piso 1', 'Piso 2'])
+  })
+
   it('produces readings that are individually valid NetworkReading objects re-parseable the normal way', () => {
-    const csv = exportReadingsToCsv([{ point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }])
+    const csv = exportReadingsToCsv([
+      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }
+    ])
     const [group] = parseConsolidatedCsv(csv)
     const [reimportedViaPlainParser] = parseWifiScanCsv(csv)
     expect(group.readings[0]).toEqual(reimportedViaPlainParser)
   })
 
   it('rejects a plain reference-format file with no point location columns', () => {
-    const plainCsv = exportReadingsToCsv([{ point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }])
+    const plainCsv = exportReadingsToCsv([
+      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }
+    ])
       .split('\n')
       .map((line) => line.split('|').slice(0, 14).join('|'))
       .join('\n')
@@ -83,10 +98,9 @@ describe('parseConsolidatedCsv', () => {
   })
 
   it('rejects a row with a non-numeric point position', () => {
-    const csv = exportReadingsToCsv([{ point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }]).replace(
-      '|120|80',
-      '|abc|80'
-    )
+    const csv = exportReadingsToCsv([
+      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }
+    ]).replace('|120|80', '|abc|80')
     expect(() => parseConsolidatedCsv(csv)).toThrow(CsvImportError)
   })
 

@@ -11,6 +11,7 @@ interface Props {
   onNewFloorPlan: (project: Project) => void
   onRenameProject: (project: Project, name: string) => void
   onRenameFloorPlan: (floorPlan: FloorPlan, name: string) => void
+  onExportProject: (project: Project) => void
   onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
   onImportFloorPlan: (floorPlan: FloorPlan, file: File) => void
 }
@@ -26,6 +27,7 @@ export function Sidebar({
   onNewFloorPlan,
   onRenameProject,
   onRenameFloorPlan,
+  onExportProject,
   onExportFloorPlan,
   onImportFloorPlan
 }: Props): JSX.Element {
@@ -133,14 +135,38 @@ export function Sidebar({
                     <div className="sidebar__project-name" title={project.name}>
                       {project.name}
                     </div>
-                    <button
-                      type="button"
-                      className="sidebar__rename-btn"
-                      onClick={() => setEditing({ kind: 'project', id: project.id })}
-                      title="Renomear levantamento"
-                    >
-                      ✎
-                    </button>
+                    <div className="sidebar__menu">
+                      <button
+                        type="button"
+                        className="sidebar__menu-btn"
+                        onClick={() => setOpenMenuId((id) => (id === project.id ? null : project.id))}
+                        title="Mais opções"
+                      >
+                        ⋮
+                      </button>
+                      {openMenuId === project.id && (
+                        <div className="sidebar__menu-dropdown">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditing({ kind: 'project', id: project.id })
+                              setOpenMenuId(null)
+                            }}
+                          >
+                            Renomear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onExportProject(project)
+                              setOpenMenuId(null)
+                            }}
+                          >
+                            Exportar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

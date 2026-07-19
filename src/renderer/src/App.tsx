@@ -88,12 +88,40 @@ export function App(): JSX.Element {
       listReadingsForFloorPlan(floorPlan.id)
     ])
     const pointReadings = points.map((point, index) => ({
+      floorPlanName: floorPlan.name,
       point,
       label: `Ponto ${index + 1}`,
       readings: readingsByPoint.get(point.id) ?? []
     }))
     const csv = exportReadingsToCsv(pointReadings)
     const filename = buildCsvFilename(project.name, floorPlan.name)
+    downloadTextFile(filename, csv)
+  }
+
+  /**
+   * "Exportar" no menu do levantamento: um único CSV consolidado com as leituras de
+   * TODAS as plantas do projeto (cada linha marcada com a planta de origem — ver
+   * POINT_LOCATION_HEADER), ao contrário de handleExportFloorPlan, que gera um
+   * arquivo por planta.
+   */
+  async function handleExportProject(project: Project): Promise<void> {
+    const floorPlans = floorPlansByProject.get(project.id) ?? []
+    const perFloorPlan = await Promise.all(
+      floorPlans.map(async (floorPlan) => {
+        const [points, readingsByPoint] = await Promise.all([
+          listPoints(floorPlan.id),
+          listReadingsForFloorPlan(floorPlan.id)
+        ])
+        return points.map((point, index) => ({
+          floorPlanName: floorPlan.name,
+          point,
+          label: `Ponto ${index + 1}`,
+          readings: readingsByPoint.get(point.id) ?? []
+        }))
+      })
+    )
+    const csv = exportReadingsToCsv(perFloorPlan.flat())
+    const filename = buildCsvFilename(project.name)
     downloadTextFile(filename, csv)
   }
 
@@ -154,6 +182,7 @@ export function App(): JSX.Element {
         onNewFloorPlan={(project) => setDialog({ kind: 'new-floor-plan', project })}
         onRenameProject={handleRenameProject}
         onRenameFloorPlan={handleRenameFloorPlan}
+        onExportProject={handleExportProject}
         onExportFloorPlan={handleExportFloorPlan}
         onImportFloorPlan={handleImportFloorPlan}
       />

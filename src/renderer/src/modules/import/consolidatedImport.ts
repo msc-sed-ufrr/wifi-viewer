@@ -4,7 +4,8 @@ import { CsvImportError, POINT_LOCATION_HEADER, REFERENCE_HEADER, parseRow } fro
 const CONSOLIDATED_HEADER = [...REFERENCE_HEADER, ...POINT_LOCATION_HEADER]
 
 export interface LocatedReadingGroup {
-  /** Rótulo de exibição da fonte (ex.: "Ponto 1") — só informativo, o agrupamento é por posição. */
+  floorPlanName: string
+  /** Rótulo de exibição da fonte (ex.: "Ponto 1") — só informativo, o agrupamento é por planta+posição. */
   label: string
   x: number
   y: number
@@ -14,8 +15,10 @@ export interface LocatedReadingGroup {
 /**
  * Inverso de exportReadingsToCsv (csvExporter.ts). Ao contrário de parseWifiScanCsv, que
  * aceita e ignora colunas de localização extras, esta função as exige — sem elas não há
- * como recriar os pontos — e agrupa as leituras por posição (x, y), não pelo rótulo, que
- * é só um índice de exibição e pode colidir entre plantas diferentes.
+ * como recriar os pontos — e agrupa as leituras por planta+posição (x, y), não pelo rótulo,
+ * que é só um índice de exibição e pode colidir entre plantas diferentes. A planta entra na
+ * chave porque um export de projeto inteiro (ver App.handleExportProject) consolida várias
+ * plantas, cujos pontos podem coincidir em (x, y) por acaso.
  */
 export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
   const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0)
@@ -42,7 +45,7 @@ export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
       )
     }
 
-    const [label, xRaw, yRaw] = cells.slice(REFERENCE_HEADER.length)
+    const [floorPlanName, label, xRaw, yRaw] = cells.slice(REFERENCE_HEADER.length)
     const x = Number(xRaw)
     const y = Number(yRaw)
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
@@ -57,12 +60,18 @@ export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
       throw new CsvImportError(`Linha ${lineNumber}: ${message}`)
     }
 
-    const key = `${x}:${y}`
+    const key = JSON.stringify([floorPlanName, x, y])
     const group = groups.get(key)
     if (group) {
       group.readings.push(reading)
     } else {
-      groups.set(key, { label: label.trim() || `${x}, ${y}`, x, y, readings: [reading] })
+      groups.set(key, {
+        floorPlanName: floorPlanName.trim(),
+        label: label.trim() || `${x}, ${y}`,
+        x,
+        y,
+        readings: [reading]
+      })
     }
   }
 
