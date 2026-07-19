@@ -33,78 +33,95 @@ function makeReading(overrides: Partial<StoredNetworkReading> = {}): StoredNetwo
   }
 }
 
+function makePointReadings(overrides: Partial<PointReadings> = {}): PointReadings {
+  return {
+    floorPlanName: 'Piso 1',
+    floorPlanWidth: 400,
+    floorPlanHeight: 300,
+    point: makePoint(),
+    label: 'Ponto 1',
+    readings: [makeReading()],
+    ...overrides
+  }
+}
+
 const HEADER =
-  'Time Stamp|SSID|BSSID|Strength|Primary Channel|Primary Frequency|Center Channel|Center Frequency|Width (Range)|Distance|802.11mc|Security|Standard|FastRoaming|Floor Plan|Point Label|Point X|Point Y'
+  'Time Stamp|SSID|BSSID|Strength|Primary Channel|Primary Frequency|Center Channel|Center Frequency|Width (Range)|Distance|802.11mc|Security|Standard|FastRoaming|Floor Plan|Point Label|Point X|Point Y|Floor Plan Width|Floor Plan Height'
 
 describe('exportReadingsToCsv', () => {
   it('exports a point with 3 readings as a header line plus one row per reading', () => {
     const point = makePoint()
     const readings = [makeReading(), makeReading(), makeReading()]
-    const csv = exportReadingsToCsv([{ floorPlanName: 'Piso 1', point, label: 'Ponto 1', readings }])
+    const csv = exportReadingsToCsv([makePointReadings({ point, readings })])
     const lines = csv.split('\n')
     expect(lines).toHaveLength(4)
     expect(lines[0]).toBe(HEADER)
     for (const line of lines.slice(1)) {
-      expect(line.split('|')).toHaveLength(18)
+      expect(line.split('|')).toHaveLength(20)
     }
   })
 
   it('uses "|" as the field separator, not a comma', () => {
-    const csv = exportReadingsToCsv([
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }
-    ])
+    const csv = exportReadingsToCsv([makePointReadings()])
     expect(csv).not.toContain(',')
   })
 
-  it('carries each reading\'s floor plan, point label and pixel position in the trailing columns', () => {
-    const csv = exportReadingsToCsv([
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading()] }
-    ])
+  it("carries each reading's floor plan (name + dimensions), point label and pixel position in the trailing columns", () => {
+    const csv = exportReadingsToCsv([makePointReadings({ point: makePoint() })])
     const cells = csv.split('\n')[1].split('|')
-    expect(cells.slice(14)).toEqual(['Piso 1', 'Ponto 1', '120', '80'])
+    expect(cells.slice(14)).toEqual(['Piso 1', 'Ponto 1', '120', '80', '400', '300'])
   })
 
   it('consolidates readings from multiple points (floor-plan export), each row tagged with its own point', () => {
-    const pointReadings: PointReadings[] = Array.from({ length: 5 }, (_, i) => ({
-      floorPlanName: 'Piso 1',
-      point: makePoint({ x: i * 10, y: i * 20 }),
-      label: `Ponto ${i + 1}`,
-      readings: [makeReading({ pointId: `point-${i}` })]
-    }))
+    const pointReadings: PointReadings[] = Array.from({ length: 5 }, (_, i) =>
+      makePointReadings({
+        point: makePoint({ x: i * 10, y: i * 20 }),
+        label: `Ponto ${i + 1}`,
+        readings: [makeReading({ pointId: `point-${i}` })]
+      })
+    )
     const csv = exportReadingsToCsv(pointReadings)
     const lines = csv.split('\n')
     expect(lines).toHaveLength(6)
     lines.slice(1).forEach((line, i) => {
       const cells = line.split('|')
-      expect(cells.slice(14)).toEqual(['Piso 1', `Ponto ${i + 1}`, `${i * 10}`, `${i * 20}`])
+      expect(cells.slice(14)).toEqual(['Piso 1', `Ponto ${i + 1}`, `${i * 10}`, `${i * 20}`, '400', '300'])
     })
     expect(() => parseWifiScanCsv(csv)).not.toThrow()
   })
 
-  it('consolidates readings across multiple floor plans (project export), each row tagged with its own floor plan', () => {
+  it('consolidates readings across multiple floor plans (project export), each row tagged with its own floor plan and dimensions', () => {
     const pointReadings: PointReadings[] = [
-      { floorPlanName: 'Piso 1', point: makePoint({ x: 10, y: 20 }), label: 'Ponto 1', readings: [makeReading()] },
-      { floorPlanName: 'Piso 2', point: makePoint({ x: 30, y: 40 }), label: 'Ponto 1', readings: [makeReading()] }
+      makePointReadings({
+        floorPlanName: 'Piso 1',
+        floorPlanWidth: 400,
+        floorPlanHeight: 300,
+        point: makePoint({ x: 10, y: 20 })
+      }),
+      makePointReadings({
+        floorPlanName: 'Piso 2',
+        floorPlanWidth: 800,
+        floorPlanHeight: 600,
+        point: makePoint({ x: 30, y: 40 })
+      })
     ]
     const csv = exportReadingsToCsv(pointReadings)
     const lines = csv.split('\n').slice(1)
-    expect(lines[0].split('|').slice(14)).toEqual(['Piso 1', 'Ponto 1', '10', '20'])
-    expect(lines[1].split('|').slice(14)).toEqual(['Piso 2', 'Ponto 1', '30', '40'])
+    expect(lines[0].split('|').slice(14)).toEqual(['Piso 1', 'Ponto 1', '10', '20', '400', '300'])
+    expect(lines[1].split('|').slice(14)).toEqual(['Piso 2', 'Ponto 1', '30', '40', '800', '600'])
   })
 
   it('omits points with no readings from the output (no row, but no error either)', () => {
     const csv = exportReadingsToCsv([
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [] },
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 2', readings: [makeReading()] }
+      makePointReadings({ label: 'Ponto 1', readings: [] }),
+      makePointReadings({ label: 'Ponto 2', readings: [makeReading()] })
     ])
     expect(csv.split('\n')).toHaveLength(2)
   })
 
-  it('round-trips a fully populated reading through parseWifiScanCsv unchanged, ignoring the extra point columns', () => {
+  it('round-trips a fully populated reading through parseWifiScanCsv unchanged, ignoring the extra point/dimension columns', () => {
     const original = makeReading()
-    const csv = exportReadingsToCsv([
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [original] }
-    ])
+    const csv = exportReadingsToCsv([makePointReadings({ readings: [original] })])
     const [reimported] = parseWifiScanCsv(csv)
 
     expect(reimported).toEqual({
@@ -123,17 +140,13 @@ describe('exportReadingsToCsv', () => {
   })
 
   it('round-trips a literal "hidden" SSID as-is', () => {
-    const csv = exportReadingsToCsv([
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading({ ssid: 'hidden' })] }
-    ])
+    const csv = exportReadingsToCsv([makePointReadings({ readings: [makeReading({ ssid: 'hidden' })] })])
     const [reimported] = parseWifiScanCsv(csv)
     expect(reimported.ssid).toBe('hidden')
   })
 
   it('round-trips a null SSID as an empty cell', () => {
-    const csv = exportReadingsToCsv([
-      { floorPlanName: 'Piso 1', point: makePoint(), label: 'Ponto 1', readings: [makeReading({ ssid: null })] }
-    ])
+    const csv = exportReadingsToCsv([makePointReadings({ readings: [makeReading({ ssid: null })] })])
     const lines = csv.split('\n')
     expect(lines[1].split('|')[1]).toBe('')
     const [reimported] = parseWifiScanCsv(csv)

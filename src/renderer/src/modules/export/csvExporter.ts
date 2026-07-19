@@ -1,18 +1,24 @@
 import type { MeasurementPoint, StoredNetworkReading } from '../../types/domain'
-import { POINT_LOCATION_HEADER, REFERENCE_HEADER } from '../import/csvParser'
+import { FLOOR_PLAN_DIMENSION_HEADER, POINT_LOCATION_HEADER, REFERENCE_HEADER } from '../import/csvParser'
 
 /**
  * Colunas extras depois das de referência: sem elas, um export com vários pontos
  * (ver App.handleExportFloorPlan) perde a informação de qual ponto/posição gerou
  * cada leitura. parseWifiScanCsv aceita o cabeçalho de referência como prefixo,
  * então essas colunas extras não quebram a reimportação simples — e
- * consolidatedImport.ts as usa pra reconstruir os pontos.
+ * consolidatedImport.ts as usa pra reconstruir os pontos. As dimensões da planta
+ * (FLOOR_PLAN_DIMENSION_HEADER) são sempre emitidas, mesmo que a importação as trate
+ * como opcionais — é o que permite reescalar proporcionalmente ao reimportar numa
+ * imagem de tamanho diferente (ADR-036).
  */
-const EXPORT_HEADER = [...REFERENCE_HEADER, ...POINT_LOCATION_HEADER]
+const EXPORT_HEADER = [...REFERENCE_HEADER, ...POINT_LOCATION_HEADER, ...FLOOR_PLAN_DIMENSION_HEADER]
 
 export interface PointReadings {
   /** Nome da planta de origem — repetido em toda linha pra sobreviver a um export que consolida várias plantas (ver App.handleExportProject). */
   floorPlanName: string
+  /** Dimensões (px) da imagem da planta de origem — usadas na reimportação pra reescalar posições numa imagem de tamanho diferente. */
+  floorPlanWidth: number
+  floorPlanHeight: number
   point: MeasurementPoint
   /** Rótulo de exibição do ponto (ex.: "Ponto 1"), o mesmo usado na UI — não é um id estável. */
   label: string
@@ -44,6 +50,8 @@ function formatRow(
   reading: StoredNetworkReading,
   point: MeasurementPoint,
   floorPlanName: string,
+  floorPlanWidth: number,
+  floorPlanHeight: number,
   label: string
 ): string {
   const cells = [
@@ -64,7 +72,9 @@ function formatRow(
     floorPlanName,
     label,
     `${point.x}`,
-    `${point.y}`
+    `${point.y}`,
+    `${floorPlanWidth}`,
+    `${floorPlanHeight}`
   ]
   return cells.join('|')
 }
@@ -76,9 +86,9 @@ function formatRow(
  */
 export function exportReadingsToCsv(pointReadings: PointReadings[]): string {
   const lines = [EXPORT_HEADER.join('|')]
-  for (const { point, floorPlanName, label, readings } of pointReadings) {
+  for (const { point, floorPlanName, floorPlanWidth, floorPlanHeight, label, readings } of pointReadings) {
     for (const reading of readings) {
-      lines.push(formatRow(reading, point, floorPlanName, label))
+      lines.push(formatRow(reading, point, floorPlanName, floorPlanWidth, floorPlanHeight, label))
     }
   }
   return lines.join('\n')

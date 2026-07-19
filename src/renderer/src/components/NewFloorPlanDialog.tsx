@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { createFloorPlan, createProject } from '../modules/projects/api'
 import { createPoint } from '../modules/points/api'
 import { addReadings } from '../modules/readings/api'
-import { parseConsolidatedCsv, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
+import { parseConsolidatedCsv, resolveImportedPosition, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
 import { loadImageDimensions } from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
 
@@ -23,6 +23,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [csvGroups, setCsvGroups] = useState<LocatedReadingGroup[] | null>(null)
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -37,6 +38,21 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
     return () => {
       URL.revokeObjectURL(objectUrl)
+    }
+  }, [file])
+
+  /** Reativo a `file` pra alimentar o aviso de posições fora dos limites (ver render abaixo) — refeito a cada troca de imagem, inclusive quando o usuário troca a imagem em resposta ao próprio aviso. */
+  useEffect(() => {
+    if (!file) {
+      setImageDimensions(null)
+      return
+    }
+    let cancelled = false
+    loadImageDimensions(file).then((dimensions) => {
+      if (!cancelled) setImageDimensions(dimensions)
+    })
+    return () => {
+      cancelled = true
     }
   }, [file])
 
@@ -126,7 +142,8 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
       if (csvGroups) {
         for (const group of csvGroups) {
-          const point = await createPoint(floorPlan.id, group.x, group.y)
+          const { x, y } = resolveImportedPosition(group, width, height)
+          const point = await createPoint(floorPlan.id, x, y)
           await addReadings(point.id, group.readings)
         }
       }
@@ -138,6 +155,19 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
       setSubmitting(false)
     }
   }
+
+  /**
+   * Recalculado a cada render a partir de csvGroups/imageDimensions — reage tanto a trocar
+   * o CSV quanto a trocar a imagem (é assim que "trocar a imagem" reavalia o aviso abaixo).
+   * Usa a mesma resolveImportedPosition do submit, então o aviso nunca diverge do que
+   * realmente vai acontecer ao clicar "Criar" (ver ADR-036).
+   */
+  const resolvedPositions =
+    csvGroups && imageDimensions
+      ? csvGroups.map((group) => resolveImportedPosition(group, imageDimensions.width, imageDimensions.height))
+      : null
+  const rescaledCount = resolvedPositions?.filter((p) => p.adjustment === 'rescaled').length ?? 0
+  const clampedCount = resolvedPositions?.filter((p) => p.adjustment === 'clamped').length ?? 0
 
   return (
     <div className="modal-overlay">
@@ -216,6 +246,22 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
               {csvGroups.length === 1 ? 'ponto encontrado' : 'pontos encontrados'} (
               {csvGroups.reduce((sum, group) => sum + group.readings.length, 0)} leituras)
             </p>
+
+            {rescaledCount > 0 && (
+              <p className="modal__hint">
+                {rescaledCount} {rescaledCount === 1 ? 'ponto será reposicionado' : 'pontos serão reposicionados'}{' '}
+                proporcionalmente — a planta de origem tem dimensões diferentes da imagem escolhida acima.
+              </p>
+            )}
+
+            {clampedCount > 0 && (
+              <p className="modal__warning">
+                {clampedCount} {clampedCount === 1 ? 'ponto fica' : 'pontos ficam'} fora dos limites da imagem
+                escolhida e {clampedCount === 1 ? 'nascerá preso' : 'nascerão presos'} à borda — visível, mas na
+                posição errada. Troque a imagem acima pela original do export (ou uma com as mesmas dimensões) pra
+                corrigir, ou continue e ajuste as posições manualmente depois.
+              </p>
+            )}
 
             <button type="button" onClick={handleRemoveCsvFile}>
               Remover CSV

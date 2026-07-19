@@ -3,7 +3,7 @@ import { listFloorPlans, listProjects, updateFloorPlan, updateProject } from './
 import { createPoint, listPoints } from './modules/points/api'
 import { addReadings, listReadingsForFloorPlan } from './modules/readings/api'
 import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
-import { parseConsolidatedCsv } from './modules/import/consolidatedImport'
+import { parseConsolidatedCsv, resolveImportedPosition } from './modules/import/consolidatedImport'
 import { downloadTextFile } from './lib/downloadFile'
 import type { FloorPlan, Project } from './types/domain'
 import { ProjectSetup } from './components/ProjectSetup'
@@ -14,6 +14,22 @@ import { useUiStore } from './store/uiStore'
 import { ALL_NETWORKS_KEY } from './modules/readings/network'
 
 type DialogState = { kind: 'new-project' } | { kind: 'new-floor-plan'; project: Project } | null
+
+/** Resumo em texto do que resolveImportedPosition fez durante um import (ver ADR-036), pro banner de importError. */
+function describePositionAdjustments(rescaledCount: number, clampedCount: number): string | null {
+  const parts: string[] = []
+  if (rescaledCount > 0) {
+    parts.push(
+      `${rescaledCount} ${rescaledCount === 1 ? 'ponto reposicionado' : 'pontos reposicionados'} proporcionalmente (dimensões da planta de origem diferem da atual).`
+    )
+  }
+  if (clampedCount > 0) {
+    parts.push(
+      `${clampedCount} ${clampedCount === 1 ? 'ponto ficou' : 'pontos ficaram'} fora dos limites da planta e ${clampedCount === 1 ? 'foi preso' : 'foram presos'} à borda (sem dimensão de origem no CSV pra reescalar corretamente).`
+    )
+  }
+  return parts.length > 0 ? parts.join(' ') : null
+}
 
 export function App(): JSX.Element {
   const [loading, setLoading] = useState(true)
@@ -89,6 +105,8 @@ export function App(): JSX.Element {
     ])
     const pointReadings = points.map((point, index) => ({
       floorPlanName: floorPlan.name,
+      floorPlanWidth: floorPlan.imageWidth,
+      floorPlanHeight: floorPlan.imageHeight,
       point,
       label: `Ponto ${index + 1}`,
       readings: readingsByPoint.get(point.id) ?? []
@@ -114,6 +132,8 @@ export function App(): JSX.Element {
         ])
         return points.map((point, index) => ({
           floorPlanName: floorPlan.name,
+          floorPlanWidth: floorPlan.imageWidth,
+          floorPlanHeight: floorPlan.imageHeight,
           point,
           label: `Ponto ${index + 1}`,
           readings: readingsByPoint.get(point.id) ?? []
@@ -128,17 +148,25 @@ export function App(): JSX.Element {
   /**
    * "Import consolidado": recria um ponto por posição presente no CSV (ver
    * parseConsolidatedCsv) e adiciona as leituras de cada um — não deduplica contra
-   * pontos já existentes, então reimportar sobre uma planta não vazia duplica.
+   * pontos já existentes, então reimportar sobre uma planta não vazia duplica. Posições
+   * passam por resolveImportedPosition (ADR-036): reescaladas proporcionalmente se o CSV
+   * carrega as dimensões da planta de origem e elas diferem da planta alvo, sempre
+   * presas aos limites da planta alvo no fim — visíveis mesmo quando erradas.
    */
   async function handleImportFloorPlan(floorPlan: FloorPlan, file: File): Promise<void> {
     try {
       const text = await file.text()
       const groups = parseConsolidatedCsv(text)
+      let rescaledCount = 0
+      let clampedCount = 0
       for (const group of groups) {
-        const point = await createPoint(floorPlan.id, group.x, group.y)
+        const { x, y, adjustment } = resolveImportedPosition(group, floorPlan.imageWidth, floorPlan.imageHeight)
+        if (adjustment === 'rescaled') rescaledCount++
+        else if (adjustment === 'clamped') clampedCount++
+        const point = await createPoint(floorPlan.id, x, y)
         await addReadings(point.id, group.readings)
       }
-      setImportError(null)
+      setImportError(describePositionAdjustments(rescaledCount, clampedCount))
       if (floorPlan.id === activeFloorPlanId) {
         setWorkspaceReloadNonce((n) => n + 1)
       }
@@ -162,6 +190,8 @@ export function App(): JSX.Element {
       const floorPlanByName = new Map(floorPlans.map((fp) => [fp.name, fp]))
       const unmatchedNames = new Set<string>()
       let touchedActiveFloorPlan = false
+      let rescaledCount = 0
+      let clampedCount = 0
 
       for (const group of groups) {
         const floorPlan = floorPlanByName.get(group.floorPlanName)
@@ -169,18 +199,24 @@ export function App(): JSX.Element {
           unmatchedNames.add(group.floorPlanName)
           continue
         }
-        const point = await createPoint(floorPlan.id, group.x, group.y)
+        const { x, y, adjustment } = resolveImportedPosition(group, floorPlan.imageWidth, floorPlan.imageHeight)
+        if (adjustment === 'rescaled') rescaledCount++
+        else if (adjustment === 'clamped') clampedCount++
+        const point = await createPoint(floorPlan.id, x, y)
         await addReadings(point.id, group.readings)
         if (floorPlan.id === activeFloorPlanId) {
           touchedActiveFloorPlan = true
         }
       }
 
-      setImportError(
+      const messages = [
         unmatchedNames.size > 0
           ? `Plantas não encontradas neste levantamento (linhas ignoradas): ${Array.from(unmatchedNames).join(', ')}`
-          : null
-      )
+          : null,
+        describePositionAdjustments(rescaledCount, clampedCount)
+      ].filter((message): message is string => message !== null)
+      setImportError(messages.length > 0 ? messages.join(' ') : null)
+
       if (touchedActiveFloorPlan) {
         setWorkspaceReloadNonce((n) => n + 1)
       }

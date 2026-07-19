@@ -4,6 +4,7 @@ import { useHeatmap, type HeatmapInput } from '../modules/heatmap/useHeatmap'
 import { getNetworkGroup } from '../modules/readings/network'
 import { useElementSize } from '../lib/useElementSize'
 import { getPixelsPerMeter } from '../lib/calibration'
+import { clampToImage } from '../lib/clampToImage'
 import { Rulers } from './Rulers'
 
 interface Props {
@@ -216,14 +217,6 @@ export function FloorPlanCanvas({
     return points.find((point) => Math.hypot(point.x - x, point.y - y) <= POINT_HIT_RADIUS)
   }
 
-  /** Mantém o ponto arrastado dentro da planta — soltar fora do canvas não pode jogar o ponto pra fora da imagem. */
-  function clampToImage(x: number, y: number): { x: number; y: number } {
-    return {
-      x: Math.min(Math.max(x, 0), floorPlan.imageWidth),
-      y: Math.min(Math.max(y, 0), floorPlan.imageHeight)
-    }
-  }
-
   /**
    * Clique-e-arraste move a planta (ver ADR-030) ou, se começar em cima de um ponto,
    * reposiciona o ponto (UC-004) — `mousedown` só guarda o ponto de partida; a decisão
@@ -253,7 +246,7 @@ export function FloorPlanCanvas({
     if (drag?.moved) {
       if (drag.pointId) {
         const coords = toImageCoords(event)
-        const { x, y } = clampToImage(coords.x, coords.y)
+        const { x, y } = clampToImage(coords.x, coords.y, floorPlan.imageWidth, floorPlan.imageHeight)
         onMovePoint(drag.pointId, x, y)
       }
       return
@@ -285,7 +278,10 @@ export function FloorPlanCanvas({
       if (drag.moved) {
         if (drag.pointId) {
           const coords = toImageCoords(event)
-          setDragPreview({ id: drag.pointId, ...clampToImage(coords.x, coords.y) })
+          setDragPreview({
+            id: drag.pointId,
+            ...clampToImage(coords.x, coords.y, floorPlan.imageWidth, floorPlan.imageHeight)
+          })
           setHoveredPointId(null)
           return
         }

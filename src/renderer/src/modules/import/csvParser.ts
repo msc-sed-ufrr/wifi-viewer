@@ -25,6 +25,13 @@ export const REFERENCE_HEADER = [
 /** Colunas extras que exportReadingsToCsv anexa depois de REFERENCE_HEADER (ver csvExporter.ts e consolidatedImport.ts). */
 export const POINT_LOCATION_HEADER = ['Floor Plan', 'Point Label', 'Point X', 'Point Y']
 
+/**
+ * Colunas finais, sempre emitidas no export mas opcionais na importação consolidada —
+ * arquivos exportados antes desta coluna existir continuam importáveis, só sem a
+ * reescala proporcional que ela habilita (ver consolidatedImport.ts, ADR-036).
+ */
+export const FLOOR_PLAN_DIMENSION_HEADER = ['Floor Plan Width', 'Floor Plan Height']
+
 export class CsvImportError extends Error {}
 
 function parseTimestamp(raw: string): string {
