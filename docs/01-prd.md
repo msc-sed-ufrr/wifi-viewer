@@ -91,16 +91,17 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Capability                          | Status | Notes                                                                                                                                                                 |
 | ----------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Definição de requisitos (este PRD)  | ✅ 100% | —                                                                                                                                                                     |
-| Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001)                                                                                                                   |
+| Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001); substituir a imagem de uma planta existente pela sidebar, com pontos reposicionados proporcionalmente e calibração descartada quando as dimensões mudam (ADR-039) |
 | Importação de CSV de scan           | ✅ 100% | Validação estrita do formato de referência (UC-002)                                                                                                                   |
-| Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez e reposicionar por arraste (UC-004) funcionam                                                               |
+| Exportação de CSV + reimportação    | ✅ 100% | Por ponto, planta ou levantamento inteiro; reimportação consolidada recria pontos pela posição, casando planta por nome no nível de levantamento, com reescala proporcional (ou aviso) quando a imagem escolhida difere da original (ver Regras de Negócio, ADR-033/034/036) |
+| Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez, reposicionar um ponto por arraste e todos de uma vez via Shift+arraste com confirmação (UC-004) funcionam  |
 | Captura ao vivo                     | ✅ 100% | Nativa via processo principal do Electron (IPC) em Windows/Linux. No macOS depende de `macwifi-cli` (ferramenta externa via Homebrew) — ver docs/02-arch.md (ADR-010) |
 | Geração de heatmap                  | ✅ 100% | IDW clássico (potência) pro valor + confiança gaussiana separada pra opacidade, gradiente contínuo sem bandas, legenda dBm→cor térmica (ADR-024/028/029)              |
 | Visualização por SSID / por BSSID   | 🔶 70% | Agrupamento por SSID + visão "todas as redes" (cores por rede) prontos; drill-down explícito por BSSID individual dentro de um SSID ainda não                         |
 | Filtro por banda (2.4GHz/5GHz)      | ✅ 100% | Filtra leituras antes de agrupar redes e calcular o heatmap                                                                                                           |
 | Calibração de escala + réguas       | ✅ 100% | Clique em 2 pontos + distância real; réguas horizontal/vertical em metros                                                                                             |
 | Legenda ampliável                   | ✅ 100% | Clique na legenda (gradiente ou lista de redes) alterna entre modo compacto e ampliado                                                                                |
-| Múltiplos levantamentos/plantas     | ✅ 100% | Sidebar (colapsável) lista levantamentos e suas plantas; criação de novo levantamento ou de nova planta num existente, com troca entre eles (ADR-015, ADR-018)        |
+| Múltiplos levantamentos/plantas     | ✅ 100% | Sidebar (colapsável) lista levantamentos e suas plantas; criação, renomeação e exclusão (com confirmação) de planta, troca entre elas (ADR-015, ADR-018, ADR-037). Exclusão de levantamento inteiro ainda não |
 | Layout responsivo                   | ✅ 100% | Sidebar colapsável e painel de ponto flutuante sobre a planta — nenhum dos dois disputa espaço com a planta, que sempre ocupa a largura toda disponível (ADR-018)     |
 | Navegação na planta (zoom/mover)    | ✅ 100% | Zoom 25%–400% (+/−) e mover por clique-e-arraste; réguas se realinham automaticamente com o zoom (ADR-030)                                                            |
 
@@ -118,6 +119,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 - Um levantamento (*survey*) é composto por uma ou mais plantas, cada uma representando um andar ou área do prédio.
 - Cada planta é uma imagem estática enviada pelo usuário; opcionalmente, o usuário define uma escala (distância real entre dois pontos clicados na imagem) usada para calibrar o heatmap.
 - Sem calibração, o heatmap é gerado em coordenadas relativas de pixel, sem conversão para metros.
+- A imagem de uma planta existente pode ser substituída a qualquer momento. Se a nova imagem tiver as mesmas dimensões da anterior, nada mais muda. Se as dimensões forem diferentes, o app pede confirmação antes de aplicar: todos os pontos existentes são reposicionados proporcionalmente para a nova imagem (nunca ficam fora dos limites dela) e a calibração de escala, se houver, é descartada — precisa ser refeita.
 
 ### Pontos de medição
 - Um ponto de medição é criado quando o usuário clica na planta para indicar onde uma leitura (ou lote de leituras) foi coletada.
@@ -134,6 +136,14 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 - A importação aceita arquivos delimitados no formato de referência: `Time Stamp | SSID | BSSID | Strength | Primary Channel | Primary Frequency | Center Channel | Center Frequency | Width (Range) | Distance | 802.11mc | Security | Standard | FastRoaming`.
 - Todas as linhas de um mesmo arquivo importado em uma única operação são associadas ao mesmo ponto de medição, selecionado previamente pelo usuário na planta.
 - Múltiplas importações podem ser feitas para múltiplos pontos, compondo o conjunto de dados do heatmap.
+
+### Exportação de dados
+- O usuário pode exportar as leituras de um ponto (`PointPanel`), de uma planta inteira ou de um levantamento inteiro (menu "⋮" da planta ou do levantamento na sidebar) como CSV no mesmo formato de referência da importação, com colunas adicionais (`Floor Plan`, `Point Label`, `Point X`, `Point Y`, `Floor Plan Width`, `Floor Plan Height`) identificando de qual planta/ponto/posição cada leitura veio e as dimensões (px) da imagem da planta de origem. A exportação de levantamento produz um único arquivo consolidando todas as plantas do projeto, não um arquivo por planta. Não há exportação em outros formatos (JSON, XML) — fora de escopo.
+- Nome do arquivo: `<levantamento>-<planta>[-<ponto>]-<data>.csv` (exportação de ponto/planta) ou `<levantamento>-<data>.csv` (exportação de levantamento inteiro).
+- Um CSV exportado é reimportável: pelo fluxo normal de importação (por ponto, ignora as colunas extras) ou, se tiver as colunas de posição (`Floor Plan`/`Point Label`/`Point X`/`Point Y` — as de dimensão são opcionais), pelo "Importar" do menu da planta (recria um ponto por posição presente no arquivo), do levantamento (mesma reconstrução, casando cada linha com uma planta existente do projeto pelo nome em `Floor Plan`) na sidebar, ou já na criação de uma planta/levantamento novo. Reimportar sobre uma planta que já tem pontos duplica os pontos: não há deduplicação por posição. No "Importar" de levantamento, linhas cuja planta não existe no projeto são ignoradas (nenhuma planta é criada automaticamente) e os nomes ignorados aparecem num aviso — criar a planta faltante automaticamente é melhoria futura, não implementada.
+- Se o CSV carrega as dimensões da planta de origem e elas diferem da planta alvo (a que está sendo criada ou a que já existe), a posição de cada ponto é reescalada proporcionalmente para caber na planta alvo — preserva a posição relativa mesmo numa imagem de tamanho diferente. Sem essa informação (CSV exportado antes desse recurso existir) ou quando a posição resultante ainda assim excede os limites, o ponto nasce preso à borda da planta — visível, ainda que na posição errada, em vez de desaparecer silenciosamente fora da área visível (ver Regras de Negócio, ADR-036). Na criação de uma planta/levantamento novo, um aviso mostra isso antes de "Criar" e permite trocar a imagem escolhida.
+- `signalSource` e `noise` não sobrevivem a um ciclo de exportar→reimportar: o formato de referência não tem coluna para nenhum dos dois, então uma leitura volta sempre como `"measured"` e sem `noise`, mesmo que a origem fosse captura ao vivo estimada.
+- Ao criar uma planta (ou levantamento) nova, o formulário já aceita opcionalmente um CSV consolidado: os pontos são recriados assim que a planta é salva, sem precisar de um "Importar" separado depois (ver ADR-035/036).
 
 ### Heatmap
 - O heatmap é recalculado sempre que um ponto de medição é adicionado, editado ou removido.
@@ -199,13 +209,14 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 
 **Flow:**
 1. Usuário seleciona um ponto existente na planta.
-2. Usuário reposiciona o ponto, adiciona nova leitura, ou remove o ponto. Alternativamente, remove todos os pontos da planta de uma vez.
+2. Usuário reposiciona o ponto, adiciona nova leitura, ou remove o ponto. Alternativamente, remove todos os pontos da planta de uma vez, ou reposiciona todos de uma vez arrastando com Shift.
 
 **Acceptance criteria:**
 - Heatmap é recalculado automaticamente após a alteração.
 - Remoção de um ponto remove todas as leituras associadas a ele.
 - Remoção em lote ("resetar pontos") exige confirmação explícita antes de executar, por ser destrutiva e irreversível.
 - Reposicionar um ponto: clique-e-arraste começando em cima do marcador move o ponto (com preview ao vivo); a posição só é persistida ao soltar, e o ponto nunca sai dos limites da planta.
+- Reposicionar todos os pontos de uma vez: Shift+clique-e-arraste em qualquer lugar da planta desloca todos os pontos juntos — visualmente, os pontos ficam parados e a imagem de fundo desliza sob eles, pra facilitar avaliar o deslocamento antes de aplicá-lo. Ao soltar, exige confirmação explícita (mostrando quantos pontos serão afetados) antes de persistir; cancelar descarta o preview sem alterar nada. Nenhum ponto sai dos limites da planta.
 
 ---
 
@@ -260,7 +271,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 ## 9. Roadmap
 
 ### Estado atual (julho 2026)
-App Electron funcional: criação de levantamento, upload de planta, importação de CSV, marcação/remoção/reposicionamento de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não oferece export/relatório — ver Panorama Competitivo na Seção 3.
+App Electron funcional: criação de levantamento, upload de planta, importação de CSV, exportação de CSV (por ponto, planta ou levantamento inteiro, com reimportação consolidada casando plantas por nome nesse último caso), marcação/remoção/reposicionamento de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não oferece export de heatmap/relatório visual (imagem ou PDF) — ver Panorama Competitivo na Seção 3.
 
 O roadmap abaixo unifica as pendências herdadas do MVP com as fases de evolução mapeadas a partir do panorama competitivo (Seção 3); legenda de esforço: **P** (dias) · **M** (1–2 semanas) · **G** (2–4 semanas) · **GG** (1–3 meses).
 
@@ -269,15 +280,15 @@ Fecha pendências do MVP e funcionalidades essenciais para o app ficar comparáv
 
 | # | Item | Descrição | Esforço | Prioridade |
 | --- | --- | --- | --- | --- |
-| 1 | ~~Reposicionar ponto por arraste~~ ✅ | Concluído (julho 2026) — arraste do marcador na planta, ver ADR-032 | P | Alta |
+| 1 | ~~Reposicionar ponto(s) por arraste~~ ✅ | Concluído (julho 2026) — arraste do marcador move um ponto (ADR-032); Shift+arraste na planta move todos de uma vez, com confirmação (ADR-038) | P | Alta |
 | 2 | Visão por BSSID individual | Drill-down explícito dentro de um SSID agrupado | P | Alta |
-| 3 | Excluir levantamento/planta pela sidebar | Hoje só é possível criar, não remover | P | Média |
+| 3 | ~~Excluir planta~~ ✅ / Excluir levantamento | Planta: concluído (julho 2026), com confirmação, ver ADR-037. Levantamento (projeto) inteiro: ainda não — só fica sem plantas se todas forem excluídas uma a uma | P | Média |
 | 4 | Export heatmap PNG/PDF | Salvar heatmap como imagem ou relatório básico | M | Alta |
 | 5 | Suporte à banda 6GHz (WiFi 6E/7) | Canalização + heatmap para a banda de 6GHz | P | Alta |
 | 6 | Visão de canais/interferência dedicada | Além do filtro de banda já existente (UC-006) | G | Média |
 | 7 | Otimização de performance do IDW | Spatial index (kd-tree) para acelerar a grade | M | Média |
 | 8 | Dark mode / temas | Suporte a tema escuro | P | Baixa |
-| 9 | Exportar leituras para CSV | Exportar dados brutos de um ponto/projeto | P | Baixa |
+| 9 | ~~Exportar leituras para CSV~~ ✅ | Concluído (julho 2026) — export/import por ponto, planta ou levantamento inteiro, ver ADR-033/034. Pendente: import de levantamento criar automaticamente (sem imagem) plantas citadas no CSV que ainda não existem — hoje essas linhas só são ignoradas e avisadas | P | Baixa |
 
 ### Fase 2 — Advanced Features (v0.3.0)
 Funcionalidades que tornam o app útil para profissionais de rede.

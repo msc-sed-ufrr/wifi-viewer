@@ -4,6 +4,7 @@ import { useHeatmap, type HeatmapInput } from '../modules/heatmap/useHeatmap'
 import { getNetworkGroup } from '../modules/readings/network'
 import { useElementSize } from '../lib/useElementSize'
 import { getPixelsPerMeter } from '../lib/calibration'
+import { clampToImage } from '../lib/clampToImage'
 import { Rulers } from './Rulers'
 
 interface Props {
@@ -20,6 +21,14 @@ interface Props {
   onSelectPoint: (id: string) => void
   onCreatePoint: (x: number, y: number) => void
   onMovePoint: (id: string, x: number, y: number) => void
+  /**
+   * Shift+arraste desloca todos os pontos de uma vez (a imagem "desliza" sob os pontos,
+   * que ficam parados na tela — ver ADR-038): reporta o delta final em px de imagem no
+   * `mouseup`, e cabe ao pai confirmar com o usuário antes de persistir.
+   */
+  onBulkMovePoints: (dx: number, dy: number) => void
+  /** Incrementado pelo pai ao resolver (confirmar/cancelar) um reposicionamento em lote pendente, para limpar o preview local. */
+  bulkMoveResetSignal: number
   /** Modo de calibração: cliques marcam pontos de referência em vez de criar/selecionar pontos de medição. */
   calibrating: boolean
   pendingCalibrationPoints: Array<{ x: number; y: number }>
@@ -52,6 +61,8 @@ interface DragState {
   moved: boolean
   /** Ponto sob o cursor no `mousedown` — se presente, o arraste reposiciona o ponto em vez de fazer pan (UC-004). */
   pointId: string | null
+  /** Shift estava pressionado no `mousedown` — o arraste desloca todos os pontos em vez de fazer pan ou mover um só. */
+  bulk: boolean
 }
 
 export function FloorPlanCanvas({
@@ -63,6 +74,8 @@ export function FloorPlanCanvas({
   onSelectPoint,
   onCreatePoint,
   onMovePoint,
+  onBulkMovePoints,
+  bulkMoveResetSignal,
   calibrating,
   pendingCalibrationPoints,
   onCalibrationClick
@@ -81,6 +94,13 @@ export function FloorPlanCanvas({
    * sem regravar o IndexedDB nem recalcular o heatmap a cada `mousemove`.
    */
   const [dragPreview, setDragPreview] = useState<{ id: string; x: number; y: number } | null>(null)
+  /**
+   * Deslocamento (px de imagem) do reposicionamento em lote em andamento — só desenha a
+   * imagem deslocada (ver efeito de render abaixo); os pontos continuam nas coordenadas
+   * normais, o que cria o efeito de "pontos parados, planta desliza". Sobrevive ao
+   * `mouseup` (fica visível durante a confirmação) e só é limpo via `bulkMoveResetSignal`.
+   */
+  const [bulkDragOffset, setBulkDragOffset] = useState<{ dx: number; dy: number } | null>(null)
   const heatmapBitmap = useHeatmap(heatmapInput, floorPlan.imageWidth, floorPlan.imageHeight)
   const renderedSize = useElementSize(canvasRef)
   /**
@@ -103,6 +123,10 @@ export function FloorPlanCanvas({
   }, [floorPlan.image])
 
   useEffect(() => {
+    setBulkDragOffset(null)
+  }, [bulkMoveResetSignal])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx || !image) return
@@ -111,7 +135,9 @@ export function FloorPlanCanvas({
     canvas.height = floorPlan.imageHeight
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+    // Só a imagem recebe o deslocamento do arraste em lote — heatmap e marcadores continuam
+    // nas coordenadas normais, já que são eles que devem parecer "parados" durante o preview.
+    ctx.drawImage(image, bulkDragOffset?.dx ?? 0, bulkDragOffset?.dy ?? 0, canvas.width, canvas.height)
 
     if (heatmapBitmap) {
       // Sem globalAlpha extra aqui: o canal alfa do bitmap já embute MAX_ALPHA×confidence
@@ -193,6 +219,7 @@ export function FloorPlanCanvas({
     points,
     selectedPointId,
     dragPreview,
+    bulkDragOffset,
     heatmapBitmap,
     pointReadingById,
     pendingCalibrationPoints,
@@ -216,14 +243,6 @@ export function FloorPlanCanvas({
     return points.find((point) => Math.hypot(point.x - x, point.y - y) <= POINT_HIT_RADIUS)
   }
 
-  /** Mantém o ponto arrastado dentro da planta — soltar fora do canvas não pode jogar o ponto pra fora da imagem. */
-  function clampToImage(x: number, y: number): { x: number; y: number } {
-    return {
-      x: Math.min(Math.max(x, 0), floorPlan.imageWidth),
-      y: Math.min(Math.max(y, 0), floorPlan.imageHeight)
-    }
-  }
-
   /**
    * Clique-e-arraste move a planta (ver ADR-030) ou, se começar em cima de um ponto,
    * reposiciona o ponto (UC-004) — `mousedown` só guarda o ponto de partida; a decisão
@@ -234,6 +253,7 @@ export function FloorPlanCanvas({
     if (event.button !== 0) return
     const scrollEl = scrollRef.current
     if (!scrollEl) return
+    const bulk = !calibrating && event.shiftKey && points.length > 0
     const { x, y } = toImageCoords(event)
     dragStateRef.current = {
       startX: event.clientX,
@@ -241,7 +261,8 @@ export function FloorPlanCanvas({
       startScrollLeft: scrollEl.scrollLeft,
       startScrollTop: scrollEl.scrollTop,
       moved: false,
-      pointId: calibrating ? null : (findPointAt(x, y)?.id ?? null)
+      bulk,
+      pointId: calibrating || bulk ? null : (findPointAt(x, y)?.id ?? null)
     }
   }
 
@@ -250,10 +271,18 @@ export function FloorPlanCanvas({
     dragStateRef.current = null
     setIsPanning(false)
     setDragPreview(null)
+    if (drag?.bulk) {
+      // Sem cruzar o limiar, não houve arraste de fato — não aciona a confirmação
+      // (e não deixa nada residual, já que bulkDragOffset só é setado a partir do limiar).
+      if (drag.moved && bulkDragOffset) {
+        onBulkMovePoints(bulkDragOffset.dx, bulkDragOffset.dy)
+      }
+      return
+    }
     if (drag?.moved) {
       if (drag.pointId) {
         const coords = toImageCoords(event)
-        const { x, y } = clampToImage(coords.x, coords.y)
+        const { x, y } = clampToImage(coords.x, coords.y, floorPlan.imageWidth, floorPlan.imageHeight)
         onMovePoint(drag.pointId, x, y)
       }
       return
@@ -280,12 +309,25 @@ export function FloorPlanCanvas({
       const dy = event.clientY - drag.startY
       if (!drag.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
         drag.moved = true
-        if (!drag.pointId) setIsPanning(true)
+        if (!drag.pointId && !drag.bulk) setIsPanning(true)
       }
       if (drag.moved) {
+        if (drag.bulk) {
+          const canvas = canvasRef.current
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect()
+            const scaleX = canvas.width / rect.width
+            const scaleY = canvas.height / rect.height
+            setBulkDragOffset({ dx: dx * scaleX, dy: dy * scaleY })
+          }
+          return
+        }
         if (drag.pointId) {
           const coords = toImageCoords(event)
-          setDragPreview({ id: drag.pointId, ...clampToImage(coords.x, coords.y) })
+          setDragPreview({
+            id: drag.pointId,
+            ...clampToImage(coords.x, coords.y, floorPlan.imageWidth, floorPlan.imageHeight)
+          })
           setHoveredPointId(null)
           return
         }
@@ -304,10 +346,14 @@ export function FloorPlanCanvas({
   }
 
   function handleMouseLeave(): void {
+    const drag = dragStateRef.current
     dragStateRef.current = null
     setIsPanning(false)
     setDragPreview(null)
     setHoveredPointId(null)
+    // Um arraste em lote ainda não confirmado (mouseup) é abandonado ao sair do canvas,
+    // igual ao pan/arraste de ponto — sem isso o preview ficaria preso sem gesto ativo.
+    if (drag?.bulk) setBulkDragOffset(null)
   }
 
   function handleZoomIn(): void {
@@ -353,7 +399,7 @@ export function FloorPlanCanvas({
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
               style={{ width: canvasWidth }}
-              className={`floor-plan-canvas__surface${calibrating ? ' floor-plan-canvas__surface--calibrating' : ''}${isPanning ? ' floor-plan-canvas__surface--panning' : ''}${dragPreview ? ' floor-plan-canvas__surface--dragging-point' : ''}`}
+              className={`floor-plan-canvas__surface${calibrating ? ' floor-plan-canvas__surface--calibrating' : ''}${isPanning ? ' floor-plan-canvas__surface--panning' : ''}${dragPreview ? ' floor-plan-canvas__surface--dragging-point' : ''}${bulkDragOffset ? ' floor-plan-canvas__surface--bulk-dragging' : ''}`}
             />
 
             {hoveredPoint && hoveredReading && (

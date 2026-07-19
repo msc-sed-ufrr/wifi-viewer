@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { createFloorPlan, createProject } from '../modules/projects/api'
-import { loadImageDimensions } from '../lib/imageDimensions'
+import { createPoint } from '../modules/points/api'
+import { addReadings } from '../modules/readings/api'
+import { parseConsolidatedCsv, resolveImportedPosition, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
+import { loadImageDimensions, validateFloorPlanImageFile } from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
-
-const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
-const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 interface Props {
   /** Ausente = também cria um novo levantamento antes de criar a planta. */
@@ -18,6 +18,9 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
   const [floorPlanName, setFloorPlanName] = useState(project ? '' : 'Planta 1')
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [csvGroups, setCsvGroups] = useState<LocatedReadingGroup[] | null>(null)
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -35,6 +38,21 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     }
   }, [file])
 
+  /** Reativo a `file` pra alimentar o aviso de posições fora dos limites (ver render abaixo) — refeito a cada troca de imagem, inclusive quando o usuário troca a imagem em resposta ao próprio aviso. */
+  useEffect(() => {
+    if (!file) {
+      setImageDimensions(null)
+      return
+    }
+    let cancelled = false
+    loadImageDimensions(file).then((dimensions) => {
+      if (!cancelled) setImageDimensions(dimensions)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [file])
+
   function handleFileChange(selectedFile: File | null): void {
     setError(null)
 
@@ -43,15 +61,10 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
       return
     }
 
-    if (!ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+    const validationError = validateFloorPlanImageFile(selectedFile)
+    if (validationError) {
       setFile(null)
-      setError('Formato inválido. Use PNG, JPG, JPEG ou WEBP.')
-      return
-    }
-
-    if (selectedFile.size > MAX_FILE_SIZE) {
-      setFile(null)
-      setError('A imagem deve ter no máximo 10 MB.')
+      setError(validationError)
       return
     }
 
@@ -60,6 +73,39 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
   function handleRemoveFile(): void {
     setFile(null)
+    setError(null)
+  }
+
+  /**
+   * Parseia na hora, igual à validação da imagem: erro de formato aparece assim que o
+   * arquivo é escolhido, não só depois de "Criar" já ter criado a planta. As posições do
+   * CSV são coordenadas de pixel da imagem original do export — só fazem sentido se a
+   * imagem escolhida acima for a mesma (ver ADR-035).
+   */
+  async function handleCsvFileChange(selectedFile: File | null): Promise<void> {
+    setError(null)
+
+    if (!selectedFile) {
+      setCsvFile(null)
+      setCsvGroups(null)
+      return
+    }
+
+    try {
+      const text = await selectedFile.text()
+      const groups = parseConsolidatedCsv(text)
+      setCsvFile(selectedFile)
+      setCsvGroups(groups)
+    } catch (err) {
+      setCsvFile(null)
+      setCsvGroups(null)
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  function handleRemoveCsvFile(): void {
+    setCsvFile(null)
+    setCsvGroups(null)
     setError(null)
   }
 
@@ -86,6 +132,14 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
         height
       )
 
+      if (csvGroups) {
+        for (const group of csvGroups) {
+          const { x, y } = resolveImportedPosition(group, width, height)
+          const point = await createPoint(floorPlan.id, x, y)
+          await addReadings(point.id, group.readings)
+        }
+      }
+
       onCreated(targetProject, floorPlan)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -93,6 +147,19 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
       setSubmitting(false)
     }
   }
+
+  /**
+   * Recalculado a cada render a partir de csvGroups/imageDimensions — reage tanto a trocar
+   * o CSV quanto a trocar a imagem (é assim que "trocar a imagem" reavalia o aviso abaixo).
+   * Usa a mesma resolveImportedPosition do submit, então o aviso nunca diverge do que
+   * realmente vai acontecer ao clicar "Criar" (ver ADR-036).
+   */
+  const resolvedPositions =
+    csvGroups && imageDimensions
+      ? csvGroups.map((group) => resolveImportedPosition(group, imageDimensions.width, imageDimensions.height))
+      : null
+  const rescaledCount = resolvedPositions?.filter((p) => p.adjustment === 'rescaled').length ?? 0
+  const clampedCount = resolvedPositions?.filter((p) => p.adjustment === 'clamped').length ?? 0
 
   return (
     <div className="modal-overlay">
@@ -147,6 +214,49 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
             <button type="button" onClick={handleRemoveFile}>
               Remover imagem
+            </button>
+          </div>
+        )}
+
+        <label>
+          Leituras (CSV, opcional)
+          <input
+            type="file"
+            accept=".csv,.txt"
+            onChange={(event) => handleCsvFileChange(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <p className="modal__hint">
+          Recria os pontos de um CSV consolidado (exportado por planta ou levantamento) —
+          as posições só fazem sentido se a imagem acima for a mesma do export original.
+        </p>
+
+        {csvFile && csvGroups && (
+          <div>
+            <p className="modal__hint">
+              {csvFile.name}: {csvGroups.length}{' '}
+              {csvGroups.length === 1 ? 'ponto encontrado' : 'pontos encontrados'} (
+              {csvGroups.reduce((sum, group) => sum + group.readings.length, 0)} leituras)
+            </p>
+
+            {rescaledCount > 0 && (
+              <p className="modal__hint">
+                {rescaledCount} {rescaledCount === 1 ? 'ponto será reposicionado' : 'pontos serão reposicionados'}{' '}
+                proporcionalmente — a planta de origem tem dimensões diferentes da imagem escolhida acima.
+              </p>
+            )}
+
+            {clampedCount > 0 && (
+              <p className="modal__warning">
+                {clampedCount} {clampedCount === 1 ? 'ponto fica' : 'pontos ficam'} fora dos limites da imagem
+                escolhida e {clampedCount === 1 ? 'nascerá preso' : 'nascerão presos'} à borda — visível, mas na
+                posição errada. Troque a imagem acima pela original do export (ou uma com as mesmas dimensões) pra
+                corrigir, ou continue e ajuste as posições manualmente depois.
+              </p>
+            )}
+
+            <button type="button" onClick={handleRemoveCsvFile}>
+              Remover CSV
             </button>
           </div>
         )}

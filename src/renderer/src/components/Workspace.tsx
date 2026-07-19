@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { FloorPlan, FloorPlanCalibration, MeasurementPoint, StoredNetworkReading } from '../types/domain'
-import { createPoint, deleteAllPointsForFloorPlan, deletePoint, listPoints, movePoint } from '../modules/points/api'
+import type {
+  FloorPlan,
+  FloorPlanCalibration,
+  MeasurementPoint,
+  Project,
+  StoredNetworkReading
+} from '../types/domain'
+import {
+  createPoint,
+  deleteAllPointsForFloorPlan,
+  deletePoint,
+  listPoints,
+  moveAllPoints,
+  movePoint
+} from '../modules/points/api'
 import { setFloorPlanCalibration } from '../modules/projects/api'
 import { addReadings, listReadingsForFloorPlan } from '../modules/readings/api'
 import {
@@ -28,12 +41,13 @@ import { ChannelChart } from './ChannelChart'
 import { CalibrationDialog } from './CalibrationDialog'
 
 interface Props {
+  project: Project
   floorPlan: FloorPlan
 }
 
 const MIN_HEATMAP_POINTS = 2
 
-export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
+export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.Element {
   const [floorPlan, setFloorPlan] = useState(initialFloorPlan)
   const [points, setPoints] = useState<MeasurementPoint[]>([])
   const [readingsByPoint, setReadingsByPoint] = useState<Map<string, StoredNetworkReading[]>>(new Map())
@@ -43,6 +57,9 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
   const [calibrating, setCalibrating] = useState(false)
   const [pendingCalibrationPoints, setPendingCalibrationPoints] = useState<Array<{ x: number; y: number }>>([])
   const [confirmingReset, setConfirmingReset] = useState(false)
+  const [pendingBulkMove, setPendingBulkMove] = useState<{ dx: number; dy: number } | null>(null)
+  /** Incrementado ao resolver (confirmar/cancelar) um pendingBulkMove — sinaliza o FloorPlanCanvas a limpar o preview. */
+  const [bulkMoveResetSignal, setBulkMoveResetSignal] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const selectedPointId = useUiStore((state) => state.selectedPointId)
@@ -144,6 +161,11 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
   const selectedPoint = points.find((point) => point.id === selectedPointId) ?? null
   const selectedPointIndex = selectedPoint ? points.indexOf(selectedPoint) : -1
 
+  const pendingBulkMoveDistanceMeters =
+    pendingBulkMove && pixelsPerMeter
+      ? Math.hypot(pendingBulkMove.dx, pendingBulkMove.dy) / pixelsPerMeter
+      : null
+
   async function handleCreatePoint(x: number, y: number): Promise<void> {
     const point = await createPoint(floorPlan.id, x, y)
     await reload()
@@ -207,6 +229,30 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
     await deleteAllPointsForFloorPlan(floorPlan.id)
     selectPoint(null)
     selectNetwork(ALL_NETWORKS_KEY)
+    await reload()
+  }
+
+  /** Shift+arraste na planta (FloorPlanCanvas) termina aqui — pede confirmação antes de persistir (ver ADR-038). */
+  function handleBulkMovePoints(dx: number, dy: number): void {
+    setPendingBulkMove({ dx, dy })
+  }
+
+  function handleCancelBulkMove(): void {
+    setPendingBulkMove(null)
+    setBulkMoveResetSignal((value) => value + 1)
+  }
+
+  /**
+   * Limpa o preview (via bulkMoveResetSignal) ANTES de aguardar a escrita no IndexedDB —
+   * se limpasse depois, o `reload` poderia chegar com os pontos já na posição nova enquanto
+   * o preview ainda mostra a imagem deslocada, duplicando visualmente o deslocamento.
+   */
+  async function handleConfirmBulkMove(): Promise<void> {
+    if (!pendingBulkMove) return
+    const { dx, dy } = pendingBulkMove
+    setPendingBulkMove(null)
+    setBulkMoveResetSignal((value) => value + 1)
+    await moveAllPoints(floorPlan.id, dx, dy, floorPlan.imageWidth, floorPlan.imageHeight)
     await reload()
   }
 
@@ -289,6 +335,27 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
         </div>
       )}
 
+      {pendingBulkMove && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Mover todos os pontos</h2>
+            <p>
+              Deslocar {points.length === 1 ? 'o 1 ponto' : `os ${points.length} pontos`} desta planta
+              {pendingBulkMoveDistanceMeters !== null ? ` em ${pendingBulkMoveDistanceMeters.toFixed(1)}m` : ''}?
+              Essa ação não pode ser desfeita.
+            </p>
+            <div className="modal__actions">
+              <button type="button" onClick={handleCancelBulkMove}>
+                Cancelar
+              </button>
+              <button type="button" className="modal__button--danger" onClick={handleConfirmBulkMove}>
+                Mover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!isAllNetworks &&
         selectedNetworkKey &&
         heatmapPoints.length > 0 &&
@@ -309,6 +376,8 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
           onSelectPoint={selectPoint}
           onCreatePoint={handleCreatePoint}
           onMovePoint={handleMovePoint}
+          onBulkMovePoints={handleBulkMovePoints}
+          bulkMoveResetSignal={bulkMoveResetSignal}
           calibrating={calibrating}
           pendingCalibrationPoints={pendingCalibrationPoints}
           onCalibrationClick={handleCalibrationClick}
@@ -316,6 +385,8 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
 
         {selectedPoint && !calibrating && (
           <PointPanel
+            project={project}
+            floorPlan={floorPlan}
             point={selectedPoint}
             index={selectedPointIndex}
             readings={readingsByPoint.get(selectedPoint.id) ?? []}
