@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listFloorPlans, listProjects, updateFloorPlan, updateProject } from './modules/projects/api'
+import { listPoints } from './modules/points/api'
+import { listReadingsForFloorPlan } from './modules/readings/api'
+import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
+import { downloadTextFile } from './lib/downloadFile'
 import type { FloorPlan, Project } from './types/domain'
 import { ProjectSetup } from './components/ProjectSetup'
 import { Sidebar } from './components/Sidebar'
@@ -70,6 +74,25 @@ export function App(): JSX.Element {
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
   }
 
+  /**
+   * Chamado a partir da sidebar, então busca pontos/leituras na hora em vez de reaproveitar
+   * o estado do Workspace — este pode ser de OUTRA planta, não necessariamente a ativa.
+   */
+  async function handleExportFloorPlan(project: Project, floorPlan: FloorPlan): Promise<void> {
+    const [points, readingsByPoint] = await Promise.all([
+      listPoints(floorPlan.id),
+      listReadingsForFloorPlan(floorPlan.id)
+    ])
+    const pointReadings = points.map((point, index) => ({
+      point,
+      label: `Ponto ${index + 1}`,
+      readings: readingsByPoint.get(point.id) ?? []
+    }))
+    const csv = exportReadingsToCsv(pointReadings)
+    const filename = buildCsvFilename(project.name, floorPlan.name)
+    downloadTextFile(filename, csv)
+  }
+
   async function handleRenameFloorPlan(floorPlan: FloorPlan, name: string): Promise<void> {
     const trimmed = name.trim()
     if (!trimmed || trimmed === floorPlan.name) return
@@ -105,6 +128,7 @@ export function App(): JSX.Element {
         onNewFloorPlan={(project) => setDialog({ kind: 'new-floor-plan', project })}
         onRenameProject={handleRenameProject}
         onRenameFloorPlan={handleRenameFloorPlan}
+        onExportFloorPlan={handleExportFloorPlan}
       />
 
       <div className="app-main">

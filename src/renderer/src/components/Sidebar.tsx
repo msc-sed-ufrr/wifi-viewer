@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { FloorPlan, Project } from '../types/domain'
 
@@ -11,6 +11,7 @@ interface Props {
   onNewFloorPlan: (project: Project) => void
   onRenameProject: (project: Project, name: string) => void
   onRenameFloorPlan: (floorPlan: FloorPlan, name: string) => void
+  onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
 }
 
 type EditTarget = { kind: 'project'; id: string } | { kind: 'floor-plan'; id: string } | null
@@ -23,10 +24,24 @@ export function Sidebar({
   onNewProject,
   onNewFloorPlan,
   onRenameProject,
-  onRenameFloorPlan
+  onRenameFloorPlan,
+  onExportFloorPlan
 }: Props): JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  /** Fecha o menu "⋮" aberto ao clicar fora dele — não precisa fechar em Escape/foco, é só um atalho de conveniência. */
+  useEffect(() => {
+    if (!openMenuId) return
+    function handleClickOutside(event: globalThis.MouseEvent): void {
+      if (event.target instanceof Element && !event.target.closest('.sidebar__menu')) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openMenuId])
 
   function commitEdit(value: string, project: Project, floorPlan?: FloorPlan): void {
     setEditing(null)
@@ -143,14 +158,38 @@ export function Sidebar({
                           >
                             {floorPlan.name}
                           </button>
-                          <button
-                            type="button"
-                            className="sidebar__rename-btn"
-                            onClick={() => setEditing({ kind: 'floor-plan', id: floorPlan.id })}
-                            title="Renomear planta"
-                          >
-                            ✎
-                          </button>
+                          <div className="sidebar__menu">
+                            <button
+                              type="button"
+                              className="sidebar__menu-btn"
+                              onClick={() => setOpenMenuId((id) => (id === floorPlan.id ? null : floorPlan.id))}
+                              title="Mais opções"
+                            >
+                              ⋮
+                            </button>
+                            {openMenuId === floorPlan.id && (
+                              <div className="sidebar__menu-dropdown">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditing({ kind: 'floor-plan', id: floorPlan.id })
+                                    setOpenMenuId(null)
+                                  }}
+                                >
+                                  Renomear
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onExportFloorPlan(project, floorPlan)
+                                    setOpenMenuId(null)
+                                  }}
+                                >
+                                  Exportar
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </>
                       )}
                     </li>
