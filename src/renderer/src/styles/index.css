@@ -643,6 +643,12 @@ body {
   cursor: move;
 }
 
+.floor-plan-canvas__surface--bulk-dragging {
+  cursor: grabbing;
+  outline: 2px dashed #2563eb;
+  outline-offset: 2px;
+}
+
 .zoom-controls {
   position: absolute;
   bottom: 16px;

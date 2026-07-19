@@ -1,5 +1,6 @@
 import { getDb } from '../storage/db'
 import type { MeasurementPoint } from '../../types/domain'
+import { clampToImage } from '../../lib/clampToImage'
 
 export async function createPoint(floorPlanId: string, x: number, y: number): Promise<MeasurementPoint> {
   const point: MeasurementPoint = {
@@ -58,6 +59,27 @@ export async function deleteAllPointsForFloorPlan(floorPlanId: string): Promise<
       cursor = await cursor.continue()
     }
     await tx.objectStore('points').delete(point.id)
+  }
+  await tx.done
+}
+
+/**
+ * Desloca todos os pontos de uma planta pela mesma quantidade (dx, dy), cada um limitado
+ * aos limites da planta — ação destrutiva, a UI deve confirmar antes de chamar.
+ */
+export async function moveAllPoints(
+  floorPlanId: string,
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number
+): Promise<void> {
+  const db = await getDb()
+  const points = await db.getAllFromIndex('points', 'byFloorPlan', floorPlanId)
+  const tx = db.transaction('points', 'readwrite')
+  for (const point of points) {
+    const { x, y } = clampToImage(point.x - dx, point.y - dy, imageWidth, imageHeight)
+    await tx.store.put({ ...point, x, y })
   }
   await tx.done
 }
