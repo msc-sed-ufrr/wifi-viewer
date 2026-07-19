@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { FloorPlan, Project } from '../types/domain'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onRenameProject: (project: Project, name: string) => void
   onRenameFloorPlan: (floorPlan: FloorPlan, name: string) => void
   onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
+  onImportFloorPlan: (floorPlan: FloorPlan, file: File) => void
 }
 
 type EditTarget = { kind: 'project'; id: string } | { kind: 'floor-plan'; id: string } | null
@@ -25,11 +26,23 @@ export function Sidebar({
   onNewFloorPlan,
   onRenameProject,
   onRenameFloorPlan,
-  onExportFloorPlan
+  onExportFloorPlan,
+  onImportFloorPlan
 }: Props): JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [importTarget, setImportTarget] = useState<FloorPlan | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  function handleImportFileChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file && importTarget) {
+      onImportFloorPlan(importTarget, file)
+    }
+    setImportTarget(null)
+  }
 
   /** Fecha o menu "⋮" aberto ao clicar fora dele — não precisa fechar em Escape/foco, é só um atalho de conveniência. */
   useEffect(() => {
@@ -81,6 +94,7 @@ export function Sidebar({
 
   return (
     <nav className="sidebar">
+      <input ref={importInputRef} type="file" accept=".csv,.txt" hidden onChange={handleImportFileChange} />
       <div className="sidebar__header">
         <h2>Levantamentos</h2>
         <div className="sidebar__header-actions">
@@ -177,6 +191,16 @@ export function Sidebar({
                                   }}
                                 >
                                   Renomear
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setImportTarget(floorPlan)
+                                    setOpenMenuId(null)
+                                    importInputRef.current?.click()
+                                  }}
+                                >
+                                  Importar
                                 </button>
                                 <button
                                   type="button"

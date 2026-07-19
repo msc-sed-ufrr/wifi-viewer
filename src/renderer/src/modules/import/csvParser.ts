@@ -22,6 +22,9 @@ export const REFERENCE_HEADER = [
   'FastRoaming'
 ]
 
+/** Colunas extras que exportReadingsToCsv anexa depois de REFERENCE_HEADER (ver csvExporter.ts e consolidatedImport.ts). */
+export const POINT_LOCATION_HEADER = ['Point Label', 'Point X', 'Point Y']
+
 export class CsvImportError extends Error {}
 
 function parseTimestamp(raw: string): string {
@@ -68,7 +71,8 @@ function parseDistanceMeters(raw: string): number | undefined {
   return Number.isFinite(value) ? value : undefined
 }
 
-function parseRow(cells: string[]): NetworkReading {
+/** Só usa as 13 primeiras posições — colunas extras (ver POINT_LOCATION_HEADER) ficam disponíveis pra quem chamar, mas são ignoradas aqui. */
+export function parseRow(cells: string[]): NetworkReading {
   const [
     timeStamp,
     ssidRaw,

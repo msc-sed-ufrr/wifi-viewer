@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listFloorPlans, listProjects, updateFloorPlan, updateProject } from './modules/projects/api'
-import { listPoints } from './modules/points/api'
-import { listReadingsForFloorPlan } from './modules/readings/api'
+import { createPoint, listPoints } from './modules/points/api'
+import { addReadings, listReadingsForFloorPlan } from './modules/readings/api'
 import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
+import { parseConsolidatedCsv } from './modules/import/consolidatedImport'
 import { downloadTextFile } from './lib/downloadFile'
 import type { FloorPlan, Project } from './types/domain'
 import { ProjectSetup } from './components/ProjectSetup'
@@ -21,6 +22,9 @@ export function App(): JSX.Element {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeFloorPlanId, setActiveFloorPlanId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  /** Incrementado pra forçar o Workspace da planta ativa a remontar e recarregar pontos/leituras após um import pela sidebar (ver handleImportFloorPlan). */
+  const [workspaceReloadNonce, setWorkspaceReloadNonce] = useState(0)
 
   const loadAll = useCallback(async (preferProjectId?: string, preferFloorPlanId?: string) => {
     const loadedProjects = await listProjects()
@@ -93,6 +97,28 @@ export function App(): JSX.Element {
     downloadTextFile(filename, csv)
   }
 
+  /**
+   * "Import consolidado": recria um ponto por posição presente no CSV (ver
+   * parseConsolidatedCsv) e adiciona as leituras de cada um — não deduplica contra
+   * pontos já existentes, então reimportar sobre uma planta não vazia duplica.
+   */
+  async function handleImportFloorPlan(floorPlan: FloorPlan, file: File): Promise<void> {
+    try {
+      const text = await file.text()
+      const groups = parseConsolidatedCsv(text)
+      for (const group of groups) {
+        const point = await createPoint(floorPlan.id, group.x, group.y)
+        await addReadings(point.id, group.readings)
+      }
+      setImportError(null)
+      if (floorPlan.id === activeFloorPlanId) {
+        setWorkspaceReloadNonce((n) => n + 1)
+      }
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   async function handleRenameFloorPlan(floorPlan: FloorPlan, name: string): Promise<void> {
     const trimmed = name.trim()
     if (!trimmed || trimmed === floorPlan.name) return
@@ -129,11 +155,16 @@ export function App(): JSX.Element {
         onRenameProject={handleRenameProject}
         onRenameFloorPlan={handleRenameFloorPlan}
         onExportFloorPlan={handleExportFloorPlan}
+        onImportFloorPlan={handleImportFloorPlan}
       />
 
       <div className="app-main">
         {activeFloorPlan && activeProject ? (
-          <Workspace key={activeFloorPlan.id} project={activeProject} floorPlan={activeFloorPlan} />
+          <Workspace
+            key={`${activeFloorPlan.id}:${workspaceReloadNonce}`}
+            project={activeProject}
+            floorPlan={activeFloorPlan}
+          />
         ) : (
           <div className="app-empty">
             <p>Este levantamento ainda não tem plantas.</p>
@@ -155,6 +186,15 @@ export function App(): JSX.Element {
           onCreated={handleDialogCreated}
           onCancel={() => setDialog(null)}
         />
+      )}
+
+      {importError && (
+        <div className="workspace__error" role="alert">
+          {importError}
+          <button type="button" onClick={() => setImportError(null)} aria-label="Fechar erro">
+            ×
+          </button>
+        </div>
       )}
     </div>
   )

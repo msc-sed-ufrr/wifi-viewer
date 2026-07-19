@@ -1,13 +1,14 @@
 import type { MeasurementPoint, StoredNetworkReading } from '../../types/domain'
-import { REFERENCE_HEADER } from '../import/csvParser'
+import { POINT_LOCATION_HEADER, REFERENCE_HEADER } from '../import/csvParser'
 
 /**
  * Colunas extras depois das de referência: sem elas, um export com vários pontos
- * (ver Workspace.handleExportAllReadings) perde a informação de qual ponto/posição
- * gerou cada leitura. parseWifiScanCsv aceita o cabeçalho de referência como prefixo,
- * então essas colunas extras não quebram a reimportação — só são ignoradas na volta.
+ * (ver App.handleExportFloorPlan) perde a informação de qual ponto/posição gerou
+ * cada leitura. parseWifiScanCsv aceita o cabeçalho de referência como prefixo,
+ * então essas colunas extras não quebram a reimportação simples — e
+ * consolidatedImport.ts as usa pra reconstruir os pontos.
  */
-const EXPORT_HEADER = [...REFERENCE_HEADER, 'Point Label', 'Point X', 'Point Y']
+const EXPORT_HEADER = [...REFERENCE_HEADER, ...POINT_LOCATION_HEADER]
 
 export interface PointReadings {
   point: MeasurementPoint
