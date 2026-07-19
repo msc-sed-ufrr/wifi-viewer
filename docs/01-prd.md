@@ -94,7 +94,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001)                                                                                                                   |
 | Importação de CSV de scan           | ✅ 100% | Validação estrita do formato de referência (UC-002)                                                                                                                   |
 | Exportação de CSV + reimportação    | ✅ 100% | Por ponto, planta ou levantamento inteiro; reimportação consolidada recria pontos pela posição, casando planta por nome no nível de levantamento, com reescala proporcional (ou aviso) quando a imagem escolhida difere da original (ver Regras de Negócio, ADR-033/034/036) |
-| Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez e reposicionar por arraste (UC-004) funcionam                                                               |
+| Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez, reposicionar um ponto por arraste e todos de uma vez via Shift+arraste com confirmação (UC-004) funcionam  |
 | Captura ao vivo                     | ✅ 100% | Nativa via processo principal do Electron (IPC) em Windows/Linux. No macOS depende de `macwifi-cli` (ferramenta externa via Homebrew) — ver docs/02-arch.md (ADR-010) |
 | Geração de heatmap                  | ✅ 100% | IDW clássico (potência) pro valor + confiança gaussiana separada pra opacidade, gradiente contínuo sem bandas, legenda dBm→cor térmica (ADR-024/028/029)              |
 | Visualização por SSID / por BSSID   | 🔶 70% | Agrupamento por SSID + visão "todas as redes" (cores por rede) prontos; drill-down explícito por BSSID individual dentro de um SSID ainda não                         |
@@ -208,13 +208,14 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 
 **Flow:**
 1. Usuário seleciona um ponto existente na planta.
-2. Usuário reposiciona o ponto, adiciona nova leitura, ou remove o ponto. Alternativamente, remove todos os pontos da planta de uma vez.
+2. Usuário reposiciona o ponto, adiciona nova leitura, ou remove o ponto. Alternativamente, remove todos os pontos da planta de uma vez, ou reposiciona todos de uma vez arrastando com Shift.
 
 **Acceptance criteria:**
 - Heatmap é recalculado automaticamente após a alteração.
 - Remoção de um ponto remove todas as leituras associadas a ele.
 - Remoção em lote ("resetar pontos") exige confirmação explícita antes de executar, por ser destrutiva e irreversível.
 - Reposicionar um ponto: clique-e-arraste começando em cima do marcador move o ponto (com preview ao vivo); a posição só é persistida ao soltar, e o ponto nunca sai dos limites da planta.
+- Reposicionar todos os pontos de uma vez: Shift+clique-e-arraste em qualquer lugar da planta desloca todos os pontos juntos — visualmente, os pontos ficam parados e a imagem de fundo desliza sob eles, pra facilitar avaliar o deslocamento antes de aplicá-lo. Ao soltar, exige confirmação explícita (mostrando quantos pontos serão afetados) antes de persistir; cancelar descarta o preview sem alterar nada. Nenhum ponto sai dos limites da planta.
 
 ---
 
@@ -278,7 +279,7 @@ Fecha pendências do MVP e funcionalidades essenciais para o app ficar comparáv
 
 | # | Item | Descrição | Esforço | Prioridade |
 | --- | --- | --- | --- | --- |
-| 1 | ~~Reposicionar ponto por arraste~~ ✅ | Concluído (julho 2026) — arraste do marcador na planta, ver ADR-032 | P | Alta |
+| 1 | ~~Reposicionar ponto(s) por arraste~~ ✅ | Concluído (julho 2026) — arraste do marcador move um ponto (ADR-032); Shift+arraste na planta move todos de uma vez, com confirmação (ADR-038) | P | Alta |
 | 2 | Visão por BSSID individual | Drill-down explícito dentro de um SSID agrupado | P | Alta |
 | 3 | ~~Excluir planta~~ ✅ / Excluir levantamento | Planta: concluído (julho 2026), com confirmação, ver ADR-037. Levantamento (projeto) inteiro: ainda não — só fica sem plantas se todas forem excluídas uma a uma | P | Média |
 | 4 | Export heatmap PNG/PDF | Salvar heatmap como imagem ou relatório básico | M | Alta |
