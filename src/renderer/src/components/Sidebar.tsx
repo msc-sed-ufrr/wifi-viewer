@@ -15,6 +15,7 @@ interface Props {
   onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
   onImportProject: (project: Project, file: File) => void
   onImportFloorPlan: (floorPlan: FloorPlan, file: File) => void
+  onReplaceFloorPlanImage: (floorPlan: FloorPlan, file: File) => void
   onDeleteFloorPlan: (floorPlan: FloorPlan) => void
 }
 
@@ -34,13 +35,16 @@ export function Sidebar({
   onExportFloorPlan,
   onImportProject,
   onImportFloorPlan,
+  onReplaceFloorPlanImage,
   onDeleteFloorPlan
 }: Props): JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [importTarget, setImportTarget] = useState<ImportTarget>(null)
+  const [replaceImageTarget, setReplaceImageTarget] = useState<FloorPlan | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   function handleImportFileChange(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0]
@@ -53,6 +57,15 @@ export function Sidebar({
       }
     }
     setImportTarget(null)
+  }
+
+  function handleReplaceImageFileChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file && replaceImageTarget) {
+      onReplaceFloorPlanImage(replaceImageTarget, file)
+    }
+    setReplaceImageTarget(null)
   }
 
   /** Fecha o menu "⋮" aberto ao clicar fora dele — não precisa fechar em Escape/foco, é só um atalho de conveniência. */
@@ -106,6 +119,13 @@ export function Sidebar({
   return (
     <nav className="sidebar">
       <input ref={importInputRef} type="file" accept=".csv,.txt" hidden onChange={handleImportFileChange} />
+      <input
+        ref={replaceImageInputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp"
+        hidden
+        onChange={handleReplaceImageFileChange}
+      />
       <div className="sidebar__header">
         <h2>Levantamentos</h2>
         <div className="sidebar__header-actions">
@@ -236,6 +256,16 @@ export function Sidebar({
                                   }}
                                 >
                                   Renomear
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplaceImageTarget(floorPlan)
+                                    setOpenMenuId(null)
+                                    replaceImageInputRef.current?.click()
+                                  }}
+                                >
+                                  Substituir imagem
                                 </button>
                                 <button
                                   type="button"

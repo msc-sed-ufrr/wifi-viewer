@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { deleteFloorPlan, listFloorPlans, listProjects, updateFloorPlan, updateProject } from './modules/projects/api'
-import { createPoint, listPoints } from './modules/points/api'
+import {
+  deleteFloorPlan,
+  listFloorPlans,
+  listProjects,
+  replaceFloorPlanImage,
+  updateFloorPlan,
+  updateProject
+} from './modules/projects/api'
+import { createPoint, listPoints, movePoint } from './modules/points/api'
 import { addReadings, listReadingsForFloorPlan } from './modules/readings/api'
 import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
 import { parseConsolidatedCsv, resolveImportedPosition } from './modules/import/consolidatedImport'
 import { downloadTextFile } from './lib/downloadFile'
-import type { FloorPlan, Project } from './types/domain'
+import { loadImageDimensions, validateFloorPlanImageFile } from './lib/imageDimensions'
+import type { FloorPlan, MeasurementPoint, Project } from './types/domain'
 import { ProjectSetup } from './components/ProjectSetup'
 import { Sidebar } from './components/Sidebar'
 import { NewFloorPlanDialog } from './components/NewFloorPlanDialog'
@@ -15,7 +23,7 @@ import { ALL_NETWORKS_KEY } from './modules/readings/network'
 
 type DialogState = { kind: 'new-project' } | { kind: 'new-floor-plan'; project: Project } | null
 
-/** Resumo em texto do que resolveImportedPosition fez durante um import (ver ADR-036), pro banner de importError. */
+/** Resumo em texto do que resolveImportedPosition fez durante um import (ver ADR-036), pro banner de floorPlanNotice. */
 function describePositionAdjustments(rescaledCount: number, clampedCount: number): string | null {
   const parts: string[] = []
   if (rescaledCount > 0) {
@@ -41,7 +49,16 @@ export function App(): JSX.Element {
   const [deletingFloorPlan, setDeletingFloorPlan] = useState<{ floorPlan: FloorPlan; pointCount: number } | null>(
     null
   )
-  const [importError, setImportError] = useState<string | null>(null)
+  /** Banner de feedback pra operações da sidebar (import, substituir imagem) — não é só de import apesar do formato. */
+  const [floorPlanNotice, setFloorPlanNotice] = useState<string | null>(null)
+  const [pendingImageReplace, setPendingImageReplace] = useState<{
+    floorPlan: FloorPlan
+    file: File
+    width: number
+    height: number
+    points: MeasurementPoint[]
+    hadCalibration: boolean
+  } | null>(null)
   /** Incrementado pra forçar o Workspace da planta ativa a remontar e recarregar pontos/leituras após um import pela sidebar (ver handleImportFloorPlan). */
   const [workspaceReloadNonce, setWorkspaceReloadNonce] = useState(0)
 
@@ -71,6 +88,23 @@ export function App(): JSX.Element {
   }, [floorPlansByProject, activeProjectId, activeFloorPlanId])
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
+
+  const pendingImageReplaceMessage = pendingImageReplace
+    ? [
+        `Substituir a imagem de "${pendingImageReplace.floorPlan.name}"? A nova imagem tem dimensões diferentes` +
+          ` (${pendingImageReplace.floorPlan.imageWidth}×${pendingImageReplace.floorPlan.imageHeight} → ` +
+          `${pendingImageReplace.width}×${pendingImageReplace.height}).`,
+        pendingImageReplace.points.length > 0
+          ? `${pendingImageReplace.points.length === 1 ? 'O 1 ponto existente será reposicionado' : `Os ${pendingImageReplace.points.length} pontos existentes serão reposicionados`} proporcionalmente para a nova imagem.`
+          : null,
+        pendingImageReplace.hadCalibration
+          ? 'A calibração de escala será removida — recalibre se necessário.'
+          : null,
+        'Essa ação não pode ser desfeita.'
+      ]
+        .filter((part): part is string => part !== null)
+        .join(' ')
+    : null
 
   function resetSelection(): void {
     useUiStore.getState().selectPoint(null)
@@ -169,12 +203,12 @@ export function App(): JSX.Element {
         const point = await createPoint(floorPlan.id, x, y)
         await addReadings(point.id, group.readings)
       }
-      setImportError(describePositionAdjustments(rescaledCount, clampedCount))
+      setFloorPlanNotice(describePositionAdjustments(rescaledCount, clampedCount))
       if (floorPlan.id === activeFloorPlanId) {
         setWorkspaceReloadNonce((n) => n + 1)
       }
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : String(error))
+      setFloorPlanNotice(error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -218,13 +252,13 @@ export function App(): JSX.Element {
           : null,
         describePositionAdjustments(rescaledCount, clampedCount)
       ].filter((message): message is string => message !== null)
-      setImportError(messages.length > 0 ? messages.join(' ') : null)
+      setFloorPlanNotice(messages.length > 0 ? messages.join(' ') : null)
 
       if (touchedActiveFloorPlan) {
         setWorkspaceReloadNonce((n) => n + 1)
       }
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : String(error))
+      setFloorPlanNotice(error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -278,6 +312,97 @@ export function App(): JSX.Element {
     }
   }
 
+  /**
+   * Grava a troca de imagem e reposiciona os pontos passados (já resolvidos contra as
+   * dimensões antigas de `floorPlan`, capturadas antes da troca — ver resolveImportedPosition).
+   * `points` vem vazio quando nada precisa mudar (dimensões iguais, ou planta vazia).
+   */
+  async function applyImageReplace(
+    floorPlan: FloorPlan,
+    file: File,
+    width: number,
+    height: number,
+    points: MeasurementPoint[]
+  ): Promise<void> {
+    const updated = await replaceFloorPlanImage(floorPlan.id, file, width, height)
+    if (!updated) return
+
+    for (const point of points) {
+      const { x, y } = resolveImportedPosition(
+        { x: point.x, y: point.y, floorPlanWidth: floorPlan.imageWidth, floorPlanHeight: floorPlan.imageHeight },
+        width,
+        height
+      )
+      await movePoint(point.id, x, y)
+    }
+
+    setFloorPlansByProject((prev) => {
+      const next = new Map(prev)
+      const list = next.get(updated.projectId) ?? []
+      next.set(
+        updated.projectId,
+        list.map((fp) => (fp.id === updated.id ? updated : fp))
+      )
+      return next
+    })
+
+    if (floorPlan.id === activeFloorPlanId) {
+      setWorkspaceReloadNonce((n) => n + 1)
+    }
+  }
+
+  /**
+   * "Substituir imagem" na sidebar. Dimensões iguais (ou planta sem pontos/calibração) —
+   * aplica na hora, nada muda de posição. Dimensões diferentes com algo em jogo — pede
+   * confirmação: os pontos existentes são reposicionados proporcionalmente (mesma
+   * resolveImportedPosition do import, ADR-036), sempre dentro dos limites — como as
+   * posições atuais já são válidas para as dimensões antigas, a reescala nunca precisa
+   * de clamp aqui (ver ADR-039). A calibração (baseada nos pixels antigos) é descartada.
+   */
+  async function handleReplaceFloorPlanImage(floorPlan: FloorPlan, file: File): Promise<void> {
+    const validationError = validateFloorPlanImageFile(file)
+    if (validationError) {
+      setFloorPlanNotice(validationError)
+      return
+    }
+
+    try {
+      const { width, height } = await loadImageDimensions(file)
+      const dimensionsChanged = width !== floorPlan.imageWidth || height !== floorPlan.imageHeight
+
+      if (!dimensionsChanged) {
+        await applyImageReplace(floorPlan, file, width, height, [])
+        return
+      }
+
+      const points = await listPoints(floorPlan.id)
+      const hadCalibration = floorPlan.calibration !== undefined
+
+      if (points.length === 0 && !hadCalibration) {
+        await applyImageReplace(floorPlan, file, width, height, [])
+        return
+      }
+
+      setPendingImageReplace({ floorPlan, file, width, height, points, hadCalibration })
+    } catch (error) {
+      setFloorPlanNotice(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  function handleCancelReplaceImage(): void {
+    setPendingImageReplace(null)
+  }
+
+  async function handleConfirmReplaceImage(): Promise<void> {
+    if (!pendingImageReplace) return
+    const { floorPlan, file, width, height, points, hadCalibration } = pendingImageReplace
+    setPendingImageReplace(null)
+    await applyImageReplace(floorPlan, file, width, height, points)
+    setFloorPlanNotice(
+      hadCalibration ? 'Calibração de escala removida — as dimensões da planta mudaram, recalibre se necessário.' : null
+    )
+  }
+
   if (loading) {
     return <div className="app-loading">Carregando…</div>
   }
@@ -301,6 +426,7 @@ export function App(): JSX.Element {
         onExportFloorPlan={handleExportFloorPlan}
         onImportProject={handleImportProject}
         onImportFloorPlan={handleImportFloorPlan}
+        onReplaceFloorPlanImage={handleReplaceFloorPlanImage}
         onDeleteFloorPlan={handleRequestDeleteFloorPlan}
       />
 
@@ -357,10 +483,27 @@ export function App(): JSX.Element {
         </div>
       )}
 
-      {importError && (
+      {pendingImageReplace && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Substituir imagem</h2>
+            <p>{pendingImageReplaceMessage}</p>
+            <div className="modal__actions">
+              <button type="button" onClick={handleCancelReplaceImage}>
+                Cancelar
+              </button>
+              <button type="button" className="modal__button--danger" onClick={handleConfirmReplaceImage}>
+                Substituir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {floorPlanNotice && (
         <div className="workspace__error" role="alert">
-          {importError}
-          <button type="button" onClick={() => setImportError(null)} aria-label="Fechar erro">
+          {floorPlanNotice}
+          <button type="button" onClick={() => setFloorPlanNotice(null)} aria-label="Fechar erro">
             ×
           </button>
         </div>

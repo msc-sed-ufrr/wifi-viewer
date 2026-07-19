@@ -3,11 +3,8 @@ import { createFloorPlan, createProject } from '../modules/projects/api'
 import { createPoint } from '../modules/points/api'
 import { addReadings } from '../modules/readings/api'
 import { parseConsolidatedCsv, resolveImportedPosition, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
-import { loadImageDimensions } from '../lib/imageDimensions'
+import { loadImageDimensions, validateFloorPlanImageFile } from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
-
-const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
-const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 interface Props {
   /** Ausente = também cria um novo levantamento antes de criar a planta. */
@@ -64,15 +61,10 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
       return
     }
 
-    if (!ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+    const validationError = validateFloorPlanImageFile(selectedFile)
+    if (validationError) {
       setFile(null)
-      setError('Formato inválido. Use PNG, JPG, JPEG ou WEBP.')
-      return
-    }
-
-    if (selectedFile.size > MAX_FILE_SIZE) {
-      setFile(null)
-      setError('A imagem deve ter no máximo 10 MB.')
+      setError(validationError)
       return
     }
 

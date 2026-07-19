@@ -70,6 +70,32 @@ export async function deleteFloorPlan(id: string): Promise<void> {
   await db.delete('floorPlans', id)
 }
 
+/**
+ * Troca a imagem da planta. Se as dimensões mudarem, a calibração (baseada nos pixels da
+ * imagem antiga) é descartada — o chamador cuida de reposicionar os pontos existentes
+ * separadamente (ver resolveImportedPosition, ADR-036/039), esta função só troca o registro.
+ */
+export async function replaceFloorPlanImage(
+  id: string,
+  image: Blob,
+  imageWidth: number,
+  imageHeight: number
+): Promise<FloorPlan | undefined> {
+  const db = await getDb()
+  const floorPlan = await db.get('floorPlans', id)
+  if (!floorPlan) return undefined
+  const dimensionsChanged = floorPlan.imageWidth !== imageWidth || floorPlan.imageHeight !== imageHeight
+  const updated: FloorPlan = {
+    ...floorPlan,
+    image,
+    imageWidth,
+    imageHeight,
+    calibration: dimensionsChanged ? undefined : floorPlan.calibration
+  }
+  await db.put('floorPlans', updated)
+  return updated
+}
+
 /** Define (ou limpa, passando undefined) a calibração de escala pixel↔metro da planta. */
 export async function setFloorPlanCalibration(
   id: string,
