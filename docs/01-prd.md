@@ -101,7 +101,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Filtro por banda (2.4GHz/5GHz)      | ✅ 100% | Filtra leituras antes de agrupar redes e calcular o heatmap                                                                                                           |
 | Calibração de escala + réguas       | ✅ 100% | Clique em 2 pontos + distância real; réguas horizontal/vertical em metros                                                                                             |
 | Legenda ampliável                   | ✅ 100% | Clique na legenda (gradiente ou lista de redes) alterna entre modo compacto e ampliado                                                                                |
-| Múltiplos levantamentos/plantas     | ✅ 100% | Sidebar (colapsável) lista levantamentos e suas plantas; criação de novo levantamento ou de nova planta num existente, com troca entre eles (ADR-015, ADR-018)        |
+| Múltiplos levantamentos/plantas     | ✅ 100% | Sidebar (colapsável) lista levantamentos e suas plantas; criação, renomeação e exclusão (com confirmação) de planta, troca entre elas (ADR-015, ADR-018, ADR-037). Exclusão de levantamento inteiro ainda não |
 | Layout responsivo                   | ✅ 100% | Sidebar colapsável e painel de ponto flutuante sobre a planta — nenhum dos dois disputa espaço com a planta, que sempre ocupa a largura toda disponível (ADR-018)     |
 | Navegação na planta (zoom/mover)    | ✅ 100% | Zoom 25%–400% (+/−) e mover por clique-e-arraste; réguas se realinham automaticamente com o zoom (ADR-030)                                                            |
 
@@ -280,7 +280,7 @@ Fecha pendências do MVP e funcionalidades essenciais para o app ficar comparáv
 | --- | --- | --- | --- | --- |
 | 1 | ~~Reposicionar ponto por arraste~~ ✅ | Concluído (julho 2026) — arraste do marcador na planta, ver ADR-032 | P | Alta |
 | 2 | Visão por BSSID individual | Drill-down explícito dentro de um SSID agrupado | P | Alta |
-| 3 | Excluir levantamento/planta pela sidebar | Hoje só é possível criar, não remover | P | Média |
+| 3 | ~~Excluir planta~~ ✅ / Excluir levantamento | Planta: concluído (julho 2026), com confirmação, ver ADR-037. Levantamento (projeto) inteiro: ainda não — só fica sem plantas se todas forem excluídas uma a uma | P | Média |
 | 4 | Export heatmap PNG/PDF | Salvar heatmap como imagem ou relatório básico | M | Alta |
 | 5 | Suporte à banda 6GHz (WiFi 6E/7) | Canalização + heatmap para a banda de 6GHz | P | Alta |
 | 6 | Visão de canais/interferência dedicada | Além do filtro de banda já existente (UC-006) | G | Média |
