@@ -91,7 +91,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Capability                          | Status | Notes                                                                                                                                                                 |
 | ----------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Definição de requisitos (este PRD)  | ✅ 100% | —                                                                                                                                                                     |
-| Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001)                                                                                                                   |
+| Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001); substituir a imagem de uma planta existente pela sidebar, com pontos reposicionados proporcionalmente e calibração descartada quando as dimensões mudam (ADR-039) |
 | Importação de CSV de scan           | ✅ 100% | Validação estrita do formato de referência (UC-002)                                                                                                                   |
 | Exportação de CSV + reimportação    | ✅ 100% | Por ponto, planta ou levantamento inteiro; reimportação consolidada recria pontos pela posição, casando planta por nome no nível de levantamento, com reescala proporcional (ou aviso) quando a imagem escolhida difere da original (ver Regras de Negócio, ADR-033/034/036) |
 | Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez, reposicionar um ponto por arraste e todos de uma vez via Shift+arraste com confirmação (UC-004) funcionam  |
@@ -119,6 +119,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 - Um levantamento (*survey*) é composto por uma ou mais plantas, cada uma representando um andar ou área do prédio.
 - Cada planta é uma imagem estática enviada pelo usuário; opcionalmente, o usuário define uma escala (distância real entre dois pontos clicados na imagem) usada para calibrar o heatmap.
 - Sem calibração, o heatmap é gerado em coordenadas relativas de pixel, sem conversão para metros.
+- A imagem de uma planta existente pode ser substituída a qualquer momento. Se a nova imagem tiver as mesmas dimensões da anterior, nada mais muda. Se as dimensões forem diferentes, o app pede confirmação antes de aplicar: todos os pontos existentes são reposicionados proporcionalmente para a nova imagem (nunca ficam fora dos limites dela) e a calibração de escala, se houver, é descartada — precisa ser refeita.
 
 ### Pontos de medição
 - Um ponto de medição é criado quando o usuário clica na planta para indicar onde uma leitura (ou lote de leituras) foi coletada.
