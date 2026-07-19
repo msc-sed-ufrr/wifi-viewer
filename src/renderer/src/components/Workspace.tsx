@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { FloorPlan, FloorPlanCalibration, MeasurementPoint, StoredNetworkReading } from '../types/domain'
+import type {
+  FloorPlan,
+  FloorPlanCalibration,
+  MeasurementPoint,
+  Project,
+  StoredNetworkReading
+} from '../types/domain'
 import { createPoint, deleteAllPointsForFloorPlan, deletePoint, listPoints, movePoint } from '../modules/points/api'
 import { setFloorPlanCalibration } from '../modules/projects/api'
 import { addReadings, listReadingsForFloorPlan } from '../modules/readings/api'
@@ -28,12 +34,13 @@ import { ChannelChart } from './ChannelChart'
 import { CalibrationDialog } from './CalibrationDialog'
 
 interface Props {
+  project: Project
   floorPlan: FloorPlan
 }
 
 const MIN_HEATMAP_POINTS = 2
 
-export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
+export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.Element {
   const [floorPlan, setFloorPlan] = useState(initialFloorPlan)
   const [points, setPoints] = useState<MeasurementPoint[]>([])
   const [readingsByPoint, setReadingsByPoint] = useState<Map<string, StoredNetworkReading[]>>(new Map())
@@ -316,6 +323,8 @@ export function Workspace({ floorPlan: initialFloorPlan }: Props): JSX.Element {
 
         {selectedPoint && !calibrating && (
           <PointPanel
+            project={project}
+            floorPlan={floorPlan}
             point={selectedPoint}
             index={selectedPointIndex}
             readings={readingsByPoint.get(selectedPoint.id) ?? []}

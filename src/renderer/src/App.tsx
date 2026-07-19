@@ -108,8 +108,8 @@ export function App(): JSX.Element {
       />
 
       <div className="app-main">
-        {activeFloorPlan ? (
-          <Workspace key={activeFloorPlan.id} floorPlan={activeFloorPlan} />
+        {activeFloorPlan && activeProject ? (
+          <Workspace key={activeFloorPlan.id} project={activeProject} floorPlan={activeFloorPlan} />
         ) : (
           <div className="app-empty">
             <p>Este levantamento ainda não tem plantas.</p>

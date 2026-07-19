@@ -35,8 +35,16 @@ describe('parseWifiScanCsv', () => {
     expect(() => parseWifiScanCsv('SSID|BSSID\nfoo|bar')).toThrow(CsvImportError)
   })
 
-  it('rejects a row with the wrong number of columns', () => {
+  it('rejects a row with fewer columns than the reference header', () => {
     expect(() => parseWifiScanCsv(`${HEADER}\ntoo|few|columns`)).toThrow(CsvImportError)
+  })
+
+  it('accepts extra trailing columns beyond the reference header, ignoring them (see csvExporter.ts)', () => {
+    const enrichedHeader = `${HEADER}|Point Label|Point X|Point Y`
+    const enrichedRow = `${VALID_ROW}|Ponto 1|120|80`
+    const readings = parseWifiScanCsv(`${enrichedHeader}\n${enrichedRow}`)
+    expect(readings).toHaveLength(1)
+    expect(readings[0]).toMatchObject({ ssid: 'TP-Link_32BB', bssid: '50:91:e3:b0:32:bb' })
   })
 
   it('rejects an empty file', () => {
