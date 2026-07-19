@@ -13,10 +13,12 @@ interface Props {
   onRenameFloorPlan: (floorPlan: FloorPlan, name: string) => void
   onExportProject: (project: Project) => void
   onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
+  onImportProject: (project: Project, file: File) => void
   onImportFloorPlan: (floorPlan: FloorPlan, file: File) => void
 }
 
 type EditTarget = { kind: 'project'; id: string } | { kind: 'floor-plan'; id: string } | null
+type ImportTarget = { kind: 'project'; project: Project } | { kind: 'floor-plan'; floorPlan: FloorPlan } | null
 
 export function Sidebar({
   projects,
@@ -29,19 +31,24 @@ export function Sidebar({
   onRenameFloorPlan,
   onExportProject,
   onExportFloorPlan,
+  onImportProject,
   onImportFloorPlan
 }: Props): JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [importTarget, setImportTarget] = useState<FloorPlan | null>(null)
+  const [importTarget, setImportTarget] = useState<ImportTarget>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
 
   function handleImportFileChange(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (file && importTarget) {
-      onImportFloorPlan(importTarget, file)
+      if (importTarget.kind === 'project') {
+        onImportProject(importTarget.project, file)
+      } else {
+        onImportFloorPlan(importTarget.floorPlan, file)
+      }
     }
     setImportTarget(null)
   }
@@ -158,6 +165,16 @@ export function Sidebar({
                           <button
                             type="button"
                             onClick={() => {
+                              setImportTarget({ kind: 'project', project })
+                              setOpenMenuId(null)
+                              importInputRef.current?.click()
+                            }}
+                          >
+                            Importar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
                               onExportProject(project)
                               setOpenMenuId(null)
                             }}
@@ -221,7 +238,7 @@ export function Sidebar({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setImportTarget(floorPlan)
+                                    setImportTarget({ kind: 'floor-plan', floorPlan })
                                     setOpenMenuId(null)
                                     importInputRef.current?.click()
                                   }}

@@ -147,6 +147,48 @@ export function App(): JSX.Element {
     }
   }
 
+  /**
+   * "Importar" no menu do levantamento: casa cada grupo do CSV consolidado com uma
+   * planta do projeto pelo nome (ver LocatedReadingGroup.floorPlanName) e importa nela,
+   * igual a handleImportFloorPlan. Nomes de planta sem correspondência não criam nada —
+   * ficam de fora e são reportados no banner de erro. Criar a planta faltante
+   * automaticamente (sem imagem) ficou fora do escopo desta etapa.
+   */
+  async function handleImportProject(project: Project, file: File): Promise<void> {
+    try {
+      const text = await file.text()
+      const groups = parseConsolidatedCsv(text)
+      const floorPlans = floorPlansByProject.get(project.id) ?? []
+      const floorPlanByName = new Map(floorPlans.map((fp) => [fp.name, fp]))
+      const unmatchedNames = new Set<string>()
+      let touchedActiveFloorPlan = false
+
+      for (const group of groups) {
+        const floorPlan = floorPlanByName.get(group.floorPlanName)
+        if (!floorPlan) {
+          unmatchedNames.add(group.floorPlanName)
+          continue
+        }
+        const point = await createPoint(floorPlan.id, group.x, group.y)
+        await addReadings(point.id, group.readings)
+        if (floorPlan.id === activeFloorPlanId) {
+          touchedActiveFloorPlan = true
+        }
+      }
+
+      setImportError(
+        unmatchedNames.size > 0
+          ? `Plantas não encontradas neste levantamento (linhas ignoradas): ${Array.from(unmatchedNames).join(', ')}`
+          : null
+      )
+      if (touchedActiveFloorPlan) {
+        setWorkspaceReloadNonce((n) => n + 1)
+      }
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   async function handleRenameFloorPlan(floorPlan: FloorPlan, name: string): Promise<void> {
     const trimmed = name.trim()
     if (!trimmed || trimmed === floorPlan.name) return
@@ -184,6 +226,7 @@ export function App(): JSX.Element {
         onRenameFloorPlan={handleRenameFloorPlan}
         onExportProject={handleExportProject}
         onExportFloorPlan={handleExportFloorPlan}
+        onImportProject={handleImportProject}
         onImportFloorPlan={handleImportFloorPlan}
       />
 
