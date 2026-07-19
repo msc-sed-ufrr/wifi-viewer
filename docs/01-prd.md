@@ -93,7 +93,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Definição de requisitos (este PRD)  | ✅ 100% | —                                                                                                                                                                     |
 | Upload/gestão de planta do prédio   | ✅ 100% | Criação de levantamento + upload de imagem (UC-001)                                                                                                                   |
 | Importação de CSV de scan           | ✅ 100% | Validação estrita do formato de referência (UC-002)                                                                                                                   |
-| Exportação de CSV + reimportação    | ✅ 100% | Por ponto ou planta inteira; reimportação consolidada recria pontos pela posição (ver Regras de Negócio, ADR-033)                                                     |
+| Exportação de CSV + reimportação    | ✅ 100% | Por ponto, planta ou levantamento inteiro; reimportação consolidada recria pontos pela posição, casando planta por nome no nível de levantamento (ver Regras de Negócio, ADR-033/034) |
 | Marcação manual de pontos na planta | ✅ 100% | Criar/selecionar/remover pontos, resetar todos de uma vez e reposicionar por arraste (UC-004) funcionam                                                               |
 | Captura ao vivo                     | ✅ 100% | Nativa via processo principal do Electron (IPC) em Windows/Linux. No macOS depende de `macwifi-cli` (ferramenta externa via Homebrew) — ver docs/02-arch.md (ADR-010) |
 | Geração de heatmap                  | ✅ 100% | IDW clássico (potência) pro valor + confiança gaussiana separada pra opacidade, gradiente contínuo sem bandas, legenda dBm→cor térmica (ADR-024/028/029)              |
@@ -137,9 +137,9 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 - Múltiplas importações podem ser feitas para múltiplos pontos, compondo o conjunto de dados do heatmap.
 
 ### Exportação de dados
-- O usuário pode exportar as leituras de um ponto (`PointPanel`) ou de uma planta inteira (menu "⋮" de cada planta na sidebar) como CSV no mesmo formato de referência da importação, com três colunas adicionais (`Point Label`, `Point X`, `Point Y`) identificando de qual ponto/posição cada leitura veio. Não há exportação em outros formatos (JSON, XML) — fora de escopo.
-- Nome do arquivo: `<levantamento>-<planta>[-<ponto>]-<data>.csv`.
-- Um CSV exportado é reimportável: pelo fluxo normal de importação (por ponto, ignora as colunas de posição) ou, se tiver as três colunas de posição, pelo "Importar" do menu da planta na sidebar — que recria um ponto por posição presente no arquivo e associa as leituras correspondentes. Reimportar sobre uma planta que já tem pontos duplica os pontos: não há deduplicação por posição.
+- O usuário pode exportar as leituras de um ponto (`PointPanel`), de uma planta inteira ou de um levantamento inteiro (menu "⋮" da planta ou do levantamento na sidebar) como CSV no mesmo formato de referência da importação, com quatro colunas adicionais (`Floor Plan`, `Point Label`, `Point X`, `Point Y`) identificando de qual planta/ponto/posição cada leitura veio. A exportação de levantamento produz um único arquivo consolidando todas as plantas do projeto, não um arquivo por planta. Não há exportação em outros formatos (JSON, XML) — fora de escopo.
+- Nome do arquivo: `<levantamento>-<planta>[-<ponto>]-<data>.csv` (exportação de ponto/planta) ou `<levantamento>-<data>.csv` (exportação de levantamento inteiro).
+- Um CSV exportado é reimportável: pelo fluxo normal de importação (por ponto, ignora as colunas extras) ou, se tiver as quatro colunas de posição, pelo "Importar" do menu da planta (recria um ponto por posição presente no arquivo) ou do levantamento (mesma reconstrução, casando cada linha com uma planta existente do projeto pelo nome em `Floor Plan`) na sidebar. Reimportar sobre uma planta que já tem pontos duplica os pontos: não há deduplicação por posição. No "Importar" de levantamento, linhas cuja planta não existe no projeto são ignoradas (nenhuma planta é criada automaticamente) e os nomes ignorados aparecem num aviso — criar a planta faltante automaticamente é melhoria futura, não implementada.
 - `signalSource` e `noise` não sobrevivem a um ciclo de exportar→reimportar: o formato de referência não tem coluna para nenhum dos dois, então uma leitura volta sempre como `"measured"` e sem `noise`, mesmo que a origem fosse captura ao vivo estimada.
 
 ### Heatmap
@@ -267,7 +267,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 ## 9. Roadmap
 
 ### Estado atual (julho 2026)
-App Electron funcional: criação de levantamento, upload de planta, importação de CSV, exportação de CSV (por ponto ou planta, com reimportação consolidada), marcação/remoção/reposicionamento de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não oferece export de heatmap/relatório visual (imagem ou PDF) — ver Panorama Competitivo na Seção 3.
+App Electron funcional: criação de levantamento, upload de planta, importação de CSV, exportação de CSV (por ponto, planta ou levantamento inteiro, com reimportação consolidada casando plantas por nome nesse último caso), marcação/remoção/reposicionamento de pontos (individual e em lote), captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes" (cores por rede, misturando nas sobreposições), filtro por banda, calibração de escala com réguas, legenda ampliável por clique, e navegação entre múltiplos levantamentos/plantas via sidebar. Testado manualmente de ponta a ponta. Comparado ao mercado, é o projeto open-source mais completo tecnicamente no seu nicho, mas ainda não oferece export de heatmap/relatório visual (imagem ou PDF) — ver Panorama Competitivo na Seção 3.
 
 O roadmap abaixo unifica as pendências herdadas do MVP com as fases de evolução mapeadas a partir do panorama competitivo (Seção 3); legenda de esforço: **P** (dias) · **M** (1–2 semanas) · **G** (2–4 semanas) · **GG** (1–3 meses).
 
@@ -284,7 +284,7 @@ Fecha pendências do MVP e funcionalidades essenciais para o app ficar comparáv
 | 6 | Visão de canais/interferência dedicada | Além do filtro de banda já existente (UC-006) | G | Média |
 | 7 | Otimização de performance do IDW | Spatial index (kd-tree) para acelerar a grade | M | Média |
 | 8 | Dark mode / temas | Suporte a tema escuro | P | Baixa |
-| 9 | ~~Exportar leituras para CSV~~ ✅ | Concluído (julho 2026) — export por ponto/planta + reimportação consolidada, ver ADR-033 | P | Baixa |
+| 9 | ~~Exportar leituras para CSV~~ ✅ | Concluído (julho 2026) — export/import por ponto, planta ou levantamento inteiro, ver ADR-033/034. Pendente: import de levantamento criar automaticamente (sem imagem) plantas citadas no CSV que ainda não existem — hoje essas linhas só são ignoradas e avisadas | P | Baixa |
 
 ### Fase 2 — Advanced Features (v0.3.0)
 Funcionalidades que tornam o app útil para profissionais de rede.
