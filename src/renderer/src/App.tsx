@@ -17,6 +17,7 @@ import type { FloorPlan, MeasurementPoint, Project } from './types/domain'
 import { ProjectSetup } from './components/ProjectSetup'
 import { Sidebar } from './components/Sidebar'
 import { NewFloorPlanDialog } from './components/NewFloorPlanDialog'
+import { ImageAlignEditor } from './components/ImageAlignEditor'
 import { Workspace } from './components/Workspace'
 import { useUiStore } from './store/uiStore'
 import { ALL_NETWORKS_KEY } from './modules/readings/network'
@@ -59,6 +60,8 @@ export function App(): JSX.Element {
     points: MeasurementPoint[]
     hadCalibration: boolean
   } | null>(null)
+  /** true = mostra o ImageAlignEditor no lugar do modal de texto, pro mesmo pendingImageReplace (ver ADR-040). */
+  const [alignEditorOpen, setAlignEditorOpen] = useState(false)
   /** Incrementado pra forçar o Workspace da planta ativa a remontar e recarregar pontos/leituras após um import pela sidebar (ver handleImportFloorPlan). */
   const [workspaceReloadNonce, setWorkspaceReloadNonce] = useState(0)
 
@@ -95,10 +98,10 @@ export function App(): JSX.Element {
           ` (${pendingImageReplace.floorPlan.imageWidth}×${pendingImageReplace.floorPlan.imageHeight} → ` +
           `${pendingImageReplace.width}×${pendingImageReplace.height}).`,
         pendingImageReplace.points.length > 0
-          ? `${pendingImageReplace.points.length === 1 ? 'O 1 ponto existente será reposicionado' : `Os ${pendingImageReplace.points.length} pontos existentes serão reposicionados`} proporcionalmente para a nova imagem.`
+          ? `"Reposicionar automaticamente" desloca ${pendingImageReplace.points.length === 1 ? 'o 1 ponto existente' : `os ${pendingImageReplace.points.length} pontos existentes`} proporcionalmente para a nova imagem; "Ajustar imagem manualmente" mantém os pontos parados e deixa você posicionar a imagem nova por baixo deles.`
           : null,
         pendingImageReplace.hadCalibration
-          ? 'A calibração de escala será removida — recalibre se necessário.'
+          ? 'Reposicionar automaticamente remove a calibração de escala (recalibre depois); ajustar manualmente preserva a calibração atual.'
           : null,
         'Essa ação não pode ser desfeita.'
       ]
@@ -315,16 +318,18 @@ export function App(): JSX.Element {
   /**
    * Grava a troca de imagem e reposiciona os pontos passados (já resolvidos contra as
    * dimensões antigas de `floorPlan`, capturadas antes da troca — ver resolveImportedPosition).
-   * `points` vem vazio quando nada precisa mudar (dimensões iguais, ou planta vazia).
+   * `points` vem vazio quando nada precisa mudar (dimensões iguais, planta vazia, ou ajuste
+   * manual via ImageAlignEditor — ADR-040 — que já "assa" a imagem nas dimensões antigas).
+   * `image` aceita `Blob` (não só `File`) porque o ajuste manual exporta via `canvas.toBlob`.
    */
   async function applyImageReplace(
     floorPlan: FloorPlan,
-    file: File,
+    image: Blob,
     width: number,
     height: number,
     points: MeasurementPoint[]
   ): Promise<void> {
-    const updated = await replaceFloorPlanImage(floorPlan.id, file, width, height)
+    const updated = await replaceFloorPlanImage(floorPlan.id, image, width, height)
     if (!updated) return
 
     for (const point of points) {
@@ -391,6 +396,7 @@ export function App(): JSX.Element {
 
   function handleCancelReplaceImage(): void {
     setPendingImageReplace(null)
+    setAlignEditorOpen(false)
   }
 
   async function handleConfirmReplaceImage(): Promise<void> {
@@ -401,6 +407,19 @@ export function App(): JSX.Element {
     setFloorPlanNotice(
       hadCalibration ? 'Calibração de escala removida — as dimensões da planta mudaram, recalibre se necessário.' : null
     )
+  }
+
+  /**
+   * Confirmação do ImageAlignEditor (ADR-040): a imagem já vem "assada" nas dimensões antigas
+   * da planta, então não há pontos pra reposicionar e a calibração é preservada automaticamente
+   * por `replaceFloorPlanImage` (só descarta quando as dimensões mudam de fato).
+   */
+  async function handleConfirmManualAlign(blob: Blob): Promise<void> {
+    if (!pendingImageReplace) return
+    const { floorPlan } = pendingImageReplace
+    setPendingImageReplace(null)
+    setAlignEditorOpen(false)
+    await applyImageReplace(floorPlan, blob, floorPlan.imageWidth, floorPlan.imageHeight, [])
   }
 
   if (loading) {
@@ -483,7 +502,7 @@ export function App(): JSX.Element {
         </div>
       )}
 
-      {pendingImageReplace && (
+      {pendingImageReplace && !alignEditorOpen && (
         <div className="modal-overlay">
           <div className="modal">
             <h2>Substituir imagem</h2>
@@ -492,12 +511,25 @@ export function App(): JSX.Element {
               <button type="button" onClick={handleCancelReplaceImage}>
                 Cancelar
               </button>
+              <button type="button" onClick={() => setAlignEditorOpen(true)}>
+                Ajustar imagem manualmente
+              </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmReplaceImage}>
-                Substituir
+                Reposicionar automaticamente
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {pendingImageReplace && alignEditorOpen && (
+        <ImageAlignEditor
+          floorPlan={pendingImageReplace.floorPlan}
+          points={pendingImageReplace.points}
+          file={pendingImageReplace.file}
+          onCancel={handleCancelReplaceImage}
+          onConfirm={handleConfirmManualAlign}
+        />
       )}
 
       {floorPlanNotice && (
