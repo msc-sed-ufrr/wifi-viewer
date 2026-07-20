@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react'
 import type { FloorPlan } from '../types/domain'
 import { ALL_NETWORKS_KEY, type NetworkGroup, type Band } from '../modules/readings/network'
+import { CalibrateIcon, CloseIcon, ResetIcon } from './icons'
 
 interface Props {
   floorPlan: FloorPlan
@@ -78,7 +79,15 @@ export function Toolbar({
           className={calibrating ? 'toolbar__button toolbar__button--active' : 'toolbar__button'}
           onClick={onToggleCalibrate}
         >
-          {calibrating ? 'Cancelar calibração' : 'Calibrar escala'}
+          {calibrating ? (
+            <>
+              <CloseIcon width={16} height={16} /> Cancelar calibração
+            </>
+          ) : (
+            <>
+              <CalibrateIcon width={16} height={16} /> Calibrar escala
+            </>
+          )}
         </button>
         <button
           type="button"
@@ -86,7 +95,7 @@ export function Toolbar({
           onClick={onResetPoints}
           disabled={!hasPoints}
         >
-          Resetar pontos
+          <ResetIcon width={16} height={16} /> Resetar pontos
         </button>
       </div>
     </header>

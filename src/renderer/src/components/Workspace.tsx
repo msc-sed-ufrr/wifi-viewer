@@ -4,7 +4,9 @@ import type {
   FloorPlanCalibration,
   MeasurementPoint,
   Project,
-  StoredNetworkReading
+  StoredNetworkReading,
+  Wall,
+  WallVertex
 } from '../types/domain'
 import {
   createPoint,
@@ -33,12 +35,27 @@ import type { HeatmapInput } from '../modules/heatmap/useHeatmap'
 import { dbmToSigma, distanceToSigmaMeters } from '../modules/heatmap/colorScale'
 import { buildChannelUsage } from '../modules/channels/channelUsage'
 import { getPixelsPerMeter } from '../lib/calibration'
+import {
+  countWallsForVertex,
+  createWall,
+  createWallVertex,
+  deleteWall,
+  deleteWallVertex,
+  listWallVertices,
+  listWalls,
+  moveWall,
+  moveWallVertex,
+  replaceWallsForFloorPlan
+} from '../modules/walls/api'
 import { Toolbar } from './Toolbar'
 import { FloorPlanCanvas } from './FloorPlanCanvas'
 import { PointPanel } from './PointPanel'
 import { Legend } from './Legend'
 import { ChannelChart } from './ChannelChart'
 import { CalibrationDialog } from './CalibrationDialog'
+import { CloseIcon } from './icons'
+import { WallEditorPanel } from './WallEditorPanel'
+import type { SnapPoint, WallSelection } from './WallLayer'
 
 interface Props {
   project: Project
@@ -62,6 +79,22 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   const [bulkMoveResetSignal, setBulkMoveResetSignal] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
+  // Editor de paredes (ADR-041) — camada independente de vetores, ver WallLayer.tsx.
+  const [vertices, setVertices] = useState<WallVertex[]>([])
+  const [walls, setWalls] = useState<Wall[]>([])
+  const [wallEditing, setWallEditing] = useState(false)
+  const [wallTool, setWallTool] = useState<'draw' | 'select'>('draw')
+  const [wallSelection, setWallSelection] = useState<WallSelection | null>(null)
+  const [confirmingDeleteVertex, setConfirmingDeleteVertex] = useState<{ id: string; wallCount: number } | null>(null)
+  /** Undo/redo das ações de parede (ADR-044) — cada item é um snapshot completo de vértices+paredes
+   * ANTES da ação correspondente. Baseado em snapshot, não em inverter cada ação manualmente. */
+  const [wallUndoStack, setWallUndoStack] = useState<Array<{ vertices: WallVertex[]; walls: Wall[] }>>([])
+  const [wallRedoStack, setWallRedoStack] = useState<Array<{ vertices: WallVertex[]; walls: Wall[] }>>([])
+  /** Painel de camadas (ADR-041) — cada uma só alterna visibilidade, nunca apaga dado. */
+  const [showMeasurements, setShowMeasurements] = useState(true)
+  const [showImage, setShowImage] = useState(true)
+  const [showWalls, setShowWalls] = useState(true)
+
   const selectedPointId = useUiStore((state) => state.selectedPointId)
   const selectPoint = useUiStore((state) => state.selectPoint)
   const selectedNetworkKey = useUiStore((state) => state.selectedNetworkKey)
@@ -72,17 +105,27 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   }, [initialFloorPlan])
 
   const reload = useCallback(async () => {
-    const [pts, readings] = await Promise.all([
+    const [pts, readings, vs, ws] = await Promise.all([
       listPoints(floorPlan.id),
-      listReadingsForFloorPlan(floorPlan.id)
+      listReadingsForFloorPlan(floorPlan.id),
+      listWallVertices(floorPlan.id),
+      listWalls(floorPlan.id)
     ])
     setPoints(pts)
     setReadingsByPoint(readings)
+    setVertices(vs)
+    setWalls(ws)
   }, [floorPlan.id])
 
   useEffect(() => {
     reload()
   }, [reload])
+
+  /** Histórico de undo/redo de paredes é por planta — trocar de planta não pode aplicar um snapshot de outra. */
+  useEffect(() => {
+    setWallUndoStack([])
+    setWallRedoStack([])
+  }, [floorPlan.id])
 
   useEffect(() => {
     isLiveCaptureAvailable().then(setScanAvailable)
@@ -264,6 +307,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     }
     selectPoint(null)
     setPendingCalibrationPoints([])
+    setWallEditing(false)
+    setWallSelection(null)
     setCalibrating(true)
   }
 
@@ -285,6 +330,139 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
     if (updated) setFloorPlan(updated)
   }
+
+  /** Clicar na ferramenta já ativa entra/sai do modo de edição de paredes — mesmo comportamento de um app
+   * vetorial (Illustrator/Corel): selecionar a ferramenta é o próprio gesto de ativar o modo, sem pré-toggle. */
+  function handleSelectWallTool(tool: 'draw' | 'select'): void {
+    if (wallEditing && wallTool === tool) {
+      setWallEditing(false)
+      setWallSelection(null)
+      return
+    }
+    selectPoint(null)
+    setCalibrating(false)
+    setPendingCalibrationPoints([])
+    setWallSelection(null)
+    setWallTool(tool)
+    setWallEditing(true)
+  }
+
+  /** Empilha o estado ATUAL (pré-mutação) de vértices/paredes — chamado no início de toda ação que muda a
+   * geometria, antes de persistir. Uma nova ação sempre invalida o redo (mesma regra de qualquer editor). */
+  function pushWallUndoSnapshot(): void {
+    setWallUndoStack((stack) => [...stack, { vertices, walls }])
+    setWallRedoStack([])
+  }
+
+  /**
+   * Resolve cada ponta (reaproveita o vértice se veio de snap, cria um novo caso contrário) e
+   * persiste a parede — retorna os ids definitivos pro WallLayer continuar a cadeia de desenho
+   * sem esperar o próximo `reload()` (ver WallLayer.tsx::handlePointResolved).
+   */
+  async function handleCreateWall(
+    start: SnapPoint,
+    end: SnapPoint
+  ): Promise<{ startVertexId: string; endVertexId: string }> {
+    pushWallUndoSnapshot()
+    const startVertexId = start.vertexId ?? (await createWallVertex(floorPlan.id, start.x, start.y)).id
+    const endVertexId = end.vertexId ?? (await createWallVertex(floorPlan.id, end.x, end.y)).id
+    await createWall(floorPlan.id, startVertexId, endVertexId)
+    await reload()
+    return { startVertexId, endVertexId }
+  }
+
+  async function handleMoveVertex(id: string, x: number, y: number): Promise<void> {
+    pushWallUndoSnapshot()
+    await moveWallVertex(id, x, y, floorPlan.imageWidth, floorPlan.imageHeight)
+    await reload()
+  }
+
+  async function handleMoveWall(id: string, dx: number, dy: number): Promise<void> {
+    pushWallUndoSnapshot()
+    await moveWall(id, dx, dy, floorPlan.imageWidth, floorPlan.imageHeight)
+    await reload()
+  }
+
+  /** Botão "Excluir" do painel — despacha conforme o tipo de seleção atual. */
+  async function handleDeleteWallSelection(): Promise<void> {
+    if (!wallSelection) return
+    if (wallSelection.kind === 'wall') {
+      pushWallUndoSnapshot()
+      await deleteWall(wallSelection.id)
+      setWallSelection(null)
+      await reload()
+      return
+    }
+    const wallCount = await countWallsForVertex(floorPlan.id, wallSelection.id)
+    if (wallCount === 0) {
+      pushWallUndoSnapshot()
+      await deleteWallVertex(wallSelection.id)
+      setWallSelection(null)
+      await reload()
+      return
+    }
+    setConfirmingDeleteVertex({ id: wallSelection.id, wallCount })
+  }
+
+  function handleCancelDeleteVertex(): void {
+    setConfirmingDeleteVertex(null)
+  }
+
+  async function handleConfirmDeleteVertex(): Promise<void> {
+    if (!confirmingDeleteVertex) return
+    const { id } = confirmingDeleteVertex
+    pushWallUndoSnapshot()
+    setConfirmingDeleteVertex(null)
+    setWallSelection(null)
+    await deleteWallVertex(id)
+    await reload()
+  }
+
+  async function handleUndoWalls(): Promise<void> {
+    if (wallUndoStack.length === 0) return
+    const previous = wallUndoStack[wallUndoStack.length - 1]
+    setWallUndoStack((stack) => stack.slice(0, -1))
+    setWallRedoStack((stack) => [...stack, { vertices, walls }])
+    setWallSelection(null)
+    await replaceWallsForFloorPlan(floorPlan.id, previous.vertices, previous.walls)
+    await reload()
+  }
+
+  async function handleRedoWalls(): Promise<void> {
+    if (wallRedoStack.length === 0) return
+    const next = wallRedoStack[wallRedoStack.length - 1]
+    setWallRedoStack((stack) => stack.slice(0, -1))
+    setWallUndoStack((stack) => [...stack, { vertices, walls }])
+    setWallSelection(null)
+    await replaceWallsForFloorPlan(floorPlan.id, next.vertices, next.walls)
+    await reload()
+  }
+
+  /** Atalhos de desfazer/refazer de paredes (ADR-044) — Cmd/Ctrl+Z e Cmd/Ctrl+Shift+Z (+ Ctrl+Y, convenção Windows).
+   * Ignora quando o foco está num campo de texto, pra não atropelar o undo nativo do navegador nesses campos. */
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      ) {
+        return
+      }
+      const modifierPressed = event.metaKey || event.ctrlKey
+      if (!modifierPressed) return
+      const key = event.key.toLowerCase()
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        void handleUndoWalls()
+      } else if ((key === 'z' && event.shiftKey) || (event.ctrlKey && key === 'y')) {
+        event.preventDefault()
+        void handleRedoWalls()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [wallUndoStack, wallRedoStack, vertices, walls, floorPlan.id])
 
   return (
     <div className="workspace">
@@ -367,39 +545,95 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
         )}
 
       <div className="workspace__body">
-        <FloorPlanCanvas
-          floorPlan={floorPlan}
-          points={points}
-          selectedPointId={selectedPointId}
-          heatmapInput={showHeatmap ? heatmapInput : { points: [] }}
-          pointReadingById={pointReadingById}
-          onSelectPoint={selectPoint}
-          onCreatePoint={handleCreatePoint}
-          onMovePoint={handleMovePoint}
-          onBulkMovePoints={handleBulkMovePoints}
-          bulkMoveResetSignal={bulkMoveResetSignal}
-          calibrating={calibrating}
-          pendingCalibrationPoints={pendingCalibrationPoints}
-          onCalibrationClick={handleCalibrationClick}
-        />
-
-        {selectedPoint && !calibrating && (
-          <PointPanel
-            project={project}
+        <div className="workspace__canvas-area">
+          <FloorPlanCanvas
             floorPlan={floorPlan}
-            point={selectedPoint}
-            index={selectedPointIndex}
-            readings={readingsByPoint.get(selectedPoint.id) ?? []}
-            scanAvailable={scanAvailable}
-            onImportCsv={handleImportCsv}
-            onLiveCapture={handleLiveCapture}
-            onDelete={handleDeletePoint}
-            onClose={() => selectPoint(null)}
+            points={points}
+            selectedPointId={selectedPointId}
+            heatmapInput={showHeatmap ? heatmapInput : { points: [] }}
+            pointReadingById={pointReadingById}
+            onSelectPoint={selectPoint}
+            onCreatePoint={handleCreatePoint}
+            onMovePoint={handleMovePoint}
+            onBulkMovePoints={handleBulkMovePoints}
+            bulkMoveResetSignal={bulkMoveResetSignal}
+            calibrating={calibrating}
+            pendingCalibrationPoints={pendingCalibrationPoints}
+            onCalibrationClick={handleCalibrationClick}
+            showPoints={showMeasurements}
+            showImage={showImage}
+            wallEditor={{
+              visible: showWalls,
+              active: wallEditing,
+              tool: wallTool,
+              vertices,
+              walls,
+              selection: wallSelection,
+              onSelect: setWallSelection,
+              onCreateWall: handleCreateWall,
+              onMoveVertex: handleMoveVertex,
+              onMoveWall: handleMoveWall
+            }}
           />
-        )}
 
-        {showHeatmap && selectedNetworkKey && <Legend />}
+          {selectedPoint && !calibrating && !wallEditing && (
+            <PointPanel
+              project={project}
+              floorPlan={floorPlan}
+              point={selectedPoint}
+              index={selectedPointIndex}
+              readings={readingsByPoint.get(selectedPoint.id) ?? []}
+              scanAvailable={scanAvailable}
+              onImportCsv={handleImportCsv}
+              onLiveCapture={handleLiveCapture}
+              onDelete={handleDeletePoint}
+              onClose={() => selectPoint(null)}
+            />
+          )}
+
+          {showHeatmap && selectedNetworkKey && <Legend />}
+        </div>
+
+        <WallEditorPanel
+          showMeasurements={showMeasurements}
+          onToggleShowMeasurements={setShowMeasurements}
+          showImage={showImage}
+          onToggleShowImage={setShowImage}
+          showWalls={showWalls}
+          onToggleShowWalls={setShowWalls}
+          wallEditing={wallEditing}
+          wallTool={wallTool}
+          onSelectWallTool={handleSelectWallTool}
+          hasSelection={wallSelection !== null}
+          onDeleteSelection={handleDeleteWallSelection}
+          canUndo={wallUndoStack.length > 0}
+          canRedo={wallRedoStack.length > 0}
+          onUndo={handleUndoWalls}
+          onRedo={handleRedoWalls}
+        />
       </div>
+
+      {confirmingDeleteVertex && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Excluir vértice</h2>
+            <p>
+              Este vértice é usado por{' '}
+              {confirmingDeleteVertex.wallCount === 1 ? '1 parede' : `${confirmingDeleteVertex.wallCount} paredes`}.
+              Excluí-lo remove {confirmingDeleteVertex.wallCount === 1 ? 'essa parede também' : 'essas paredes também'}.
+              Essa ação não pode ser desfeita.
+            </p>
+            <div className="modal__actions">
+              <button type="button" onClick={handleCancelDeleteVertex}>
+                Cancelar
+              </button>
+              <button type="button" className="modal__button--danger" onClick={handleConfirmDeleteVertex}>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isAllNetworks && channelUsage.length > 0 && <ChannelChart entries={channelUsage} />}
 
@@ -407,7 +641,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
         <div className="workspace__error" role="alert">
           {error}
           <button type="button" onClick={() => setError(null)} aria-label="Fechar erro">
-            ×
+            <CloseIcon width={16} height={16} />
           </button>
         </div>
       )}

@@ -139,6 +139,9 @@ body {
 
 .sidebar__new-project,
 .sidebar__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 24px;
   border-radius: 6px;
@@ -148,10 +151,6 @@ body {
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-}
-
-.sidebar__new-project {
-  font-size: 16px;
 }
 
 .sidebar__new-project:hover,
@@ -210,6 +209,9 @@ body {
 }
 
 .sidebar__menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
   border: none;
@@ -245,6 +247,9 @@ body {
 }
 
 .sidebar__menu-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 6px 8px;
   border: none;
   border-radius: 5px;
@@ -253,6 +258,10 @@ body {
   font-size: 12.5px;
   text-align: left;
   cursor: pointer;
+}
+
+.sidebar__menu-dropdown button .icon {
+  flex-shrink: 0;
 }
 
 .sidebar__menu-dropdown button:hover {
@@ -338,6 +347,9 @@ body {
 }
 
 .sidebar__add-floor-plan {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #9ca3af;
   font-style: italic;
 }
@@ -421,6 +433,10 @@ body {
 }
 
 .toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid #d1d5db;
@@ -459,6 +475,123 @@ body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Área do canvas dentro de .workspace__body — vira a referência de posicionamento de
+   PointPanel/Legend (ambos position:absolute) em vez do body inteiro, senão eles ficariam
+   ancorados atrás do .wall-editor-panel quando ele tem largura real (ver ADR-041). Mesmo
+   motivo do min-width:0 que .app-main já usa (ver acima). */
+.workspace__canvas-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* Painel de camadas/editor de paredes, à direita do workspace (ADR-041) — mesmo padrão de
+   colapso da .sidebar à esquerda, espelhado e com tema claro (ferramenta, não navegação). */
+.wall-editor-panel {
+  width: 240px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-left: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.wall-editor-panel--collapsed {
+  width: 36px;
+  align-items: center;
+  padding-top: 12px;
+  gap: 0;
+}
+
+.wall-editor-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wall-editor-panel__header h2,
+.wall-editor-panel__section h2 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.wall-editor-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wall-editor-panel__toggle:hover {
+  background: #f3f4f6;
+}
+
+.wall-editor-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wall-editor-panel__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.wall-editor-panel__tool-group {
+  display: flex;
+  gap: 8px;
+}
+
+.wall-editor-panel__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wall-editor-panel__tool-group .wall-editor-panel__button {
+  flex: 1;
+}
+
+.wall-editor-panel__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.wall-editor-panel__button--active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.wall-editor-panel__button--danger {
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
 /* Distribuição de canais */
@@ -649,6 +782,102 @@ body {
   outline-offset: 2px;
 }
 
+/* WallLayer (SVG, dentro do FloorPlanCanvas — ADR-041) */
+.wall-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: auto;
+}
+
+.wall-layer--draw {
+  cursor: crosshair;
+}
+
+.wall-layer--select {
+  cursor: default;
+}
+
+/* Enquanto um vértice/parede está sendo arrastado, força o cursor de "segurando" mesmo se o
+   mouse sair da área de acerto original no meio do gesto (arraste rápido). */
+.wall-layer--dragging,
+.wall-layer--dragging * {
+  cursor: grabbing !important;
+}
+
+.wall-layer__wall {
+  stroke: #1f2937;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.wall-layer__wall--selected {
+  stroke: #2563eb;
+}
+
+.wall-layer__wall--dragging {
+  stroke: #f59e0b;
+  stroke-dasharray: 5 4;
+}
+
+.wall-layer__wall--snapped {
+  stroke: #16a34a;
+}
+
+.wall-layer__wall-hit {
+  stroke: transparent;
+  /* Sem isso, um stroke transparente não conta como "pintado" pro modelo padrão de
+     pointer-events (visiblePainted) e o clique atravessa a faixa de acerto inteira —
+     force o hit-test pela geometria do traço, independente de como ele é pintado. */
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.wall-layer__vertex {
+  fill: #1f2937;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.wall-layer__vertex--selected {
+  fill: #2563eb;
+}
+
+.wall-layer__vertex--pending {
+  fill: #dc2626;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.wall-layer__vertex--dragging {
+  fill: #f59e0b;
+  r: 7;
+}
+
+.wall-layer__vertex--dragging-snapped {
+  fill: #16a34a;
+  r: 7;
+}
+
+.wall-layer__vertex-hit {
+  fill: transparent;
+  pointer-events: fill;
+}
+
+.wall-layer__vertex-hit--draggable {
+  cursor: grab;
+}
+
+.wall-layer__preview {
+  stroke: #dc2626;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.wall-layer__preview--snapped {
+  stroke: #16a34a;
+}
+
 .zoom-controls {
   position: absolute;
   bottom: 16px;
@@ -663,6 +892,9 @@ body {
 }
 
 .zoom-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: #111827;
@@ -817,6 +1049,9 @@ body {
 }
 
 .point-panel__header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   font-size: 18px;
@@ -930,6 +1165,10 @@ body {
 }
 
 .workspace__error button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: white;

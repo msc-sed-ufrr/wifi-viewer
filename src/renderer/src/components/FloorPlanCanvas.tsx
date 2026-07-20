@@ -6,6 +6,8 @@ import { useElementSize } from '../lib/useElementSize'
 import { getPixelsPerMeter } from '../lib/calibration'
 import { clampToImage } from '../lib/clampToImage'
 import { Rulers } from './Rulers'
+import { WallLayer, type WallEditorProps } from './WallLayer'
+import { ZoomInIcon, ZoomOutIcon } from './icons'
 
 interface Props {
   floorPlan: FloorPlan
@@ -33,6 +35,12 @@ interface Props {
   calibrating: boolean
   pendingCalibrationPoints: Array<{ x: number; y: number }>
   onCalibrationClick: (x: number, y: number) => void
+  /** Camada "Medições" do painel de camadas (ADR-041) — liga/desliga só os marcadores de ponto. */
+  showPoints: boolean
+  /** Camada "Imagem" do painel de camadas — liga/desliga o desenho da imagem de fundo. */
+  showImage: boolean
+  /** Camada/editor de paredes (ADR-041) — ver WallLayer.tsx. */
+  wallEditor: WallEditorProps
 }
 
 /**
@@ -78,7 +86,10 @@ export function FloorPlanCanvas({
   bulkMoveResetSignal,
   calibrating,
   pendingCalibrationPoints,
-  onCalibrationClick
+  onCalibrationClick,
+  showPoints,
+  showImage,
+  wallEditor
 }: Props): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -137,7 +148,9 @@ export function FloorPlanCanvas({
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     // Só a imagem recebe o deslocamento do arraste em lote — heatmap e marcadores continuam
     // nas coordenadas normais, já que são eles que devem parecer "parados" durante o preview.
-    ctx.drawImage(image, bulkDragOffset?.dx ?? 0, bulkDragOffset?.dy ?? 0, canvas.width, canvas.height)
+    if (showImage) {
+      ctx.drawImage(image, bulkDragOffset?.dx ?? 0, bulkDragOffset?.dy ?? 0, canvas.width, canvas.height)
+    }
 
     if (heatmapBitmap) {
       // Sem globalAlpha extra aqui: o canal alfa do bitmap já embute MAX_ALPHA×confidence
@@ -157,36 +170,38 @@ export function FloorPlanCanvas({
       )
     }
 
-    points.forEach((point, index) => {
-      const isSelected = point.id === selectedPointId
-      const { x, y } = dragPreview?.id === point.id ? dragPreview : point
+    if (showPoints) {
+      points.forEach((point, index) => {
+        const isSelected = point.id === selectedPointId
+        const { x, y } = dragPreview?.id === point.id ? dragPreview : point
 
-      ctx.beginPath()
-      ctx.arc(x, y, POINT_RADIUS, 0, Math.PI * 2)
-      ctx.fillStyle = isSelected ? '#2563eb' : '#111827'
-      ctx.fill()
-      ctx.lineWidth = 2
-      ctx.strokeStyle = '#ffffff'
-      ctx.stroke()
-      ctx.fillStyle = '#ffffff'
-      ctx.font = `bold ${POINT_RADIUS}px sans-serif`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(String(index + 1), x, y)
+        ctx.beginPath()
+        ctx.arc(x, y, POINT_RADIUS, 0, Math.PI * 2)
+        ctx.fillStyle = isSelected ? '#2563eb' : '#111827'
+        ctx.fill()
+        ctx.lineWidth = 2
+        ctx.strokeStyle = '#ffffff'
+        ctx.stroke()
+        ctx.fillStyle = '#ffffff'
+        ctx.font = `bold ${POINT_RADIUS}px sans-serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(String(index + 1), x, y)
 
-      const reading = pointReadingById.get(point.id)
-      if (reading) {
-        const label = `(${reading.signalDbm})`
-        const labelX = x + POINT_RADIUS + 4
-        ctx.font = `${POINT_RADIUS}px sans-serif`
-        ctx.textAlign = 'left'
-        ctx.lineWidth = 3
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-        ctx.strokeText(label, labelX, y)
-        ctx.fillStyle = '#111827'
-        ctx.fillText(label, labelX, y)
-      }
-    })
+        const reading = pointReadingById.get(point.id)
+        if (reading) {
+          const label = `(${reading.signalDbm})`
+          const labelX = x + POINT_RADIUS + 4
+          ctx.font = `${POINT_RADIUS}px sans-serif`
+          ctx.textAlign = 'left'
+          ctx.lineWidth = 3
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+          ctx.strokeText(label, labelX, y)
+          ctx.fillStyle = '#111827'
+          ctx.fillText(label, labelX, y)
+        }
+      })
+    }
 
     if (pendingCalibrationPoints.length > 0) {
       ctx.save()
@@ -224,7 +239,9 @@ export function FloorPlanCanvas({
     pointReadingById,
     pendingCalibrationPoints,
     floorPlan.imageWidth,
-    floorPlan.imageHeight
+    floorPlan.imageHeight,
+    showImage,
+    showPoints
   ])
 
   function toImageCoords(event: MouseEvent<HTMLCanvasElement>): { x: number; y: number } {
@@ -402,6 +419,8 @@ export function FloorPlanCanvas({
               className={`floor-plan-canvas__surface${calibrating ? ' floor-plan-canvas__surface--calibrating' : ''}${isPanning ? ' floor-plan-canvas__surface--panning' : ''}${dragPreview ? ' floor-plan-canvas__surface--dragging-point' : ''}${bulkDragOffset ? ' floor-plan-canvas__surface--bulk-dragging' : ''}`}
             />
 
+            <WallLayer floorPlan={floorPlan} canvasWidth={canvasWidth} {...wallEditor} />
+
             {hoveredPoint && hoveredReading && (
               <div
                 className="point-tooltip"
@@ -436,13 +455,13 @@ export function FloorPlanCanvas({
 
       <div className="zoom-controls">
         <button type="button" onClick={handleZoomOut} disabled={zoom <= MIN_ZOOM} title="Diminuir zoom">
-          −
+          <ZoomOutIcon width={18} height={18} />
         </button>
         <button type="button" className="zoom-controls__level" onClick={handleZoomReset} title="Restaurar 100%">
           {Math.round(zoom * 100)}%
         </button>
         <button type="button" onClick={handleZoomIn} disabled={zoom >= MAX_ZOOM} title="Aumentar zoom">
-          +
+          <ZoomInIcon width={18} height={18} />
         </button>
       </div>
     </>
