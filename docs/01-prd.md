@@ -104,7 +104,7 @@ Os itens da Seção 9 são ordenados por estes critérios, nesta ordem:
 | Múltiplos levantamentos/plantas     | ✅ 100% | Sidebar (colapsável) lista levantamentos e suas plantas; criação, renomeação e exclusão (com confirmação) de planta, troca entre elas (ADR-015, ADR-018, ADR-037). Exclusão de levantamento inteiro ainda não |
 | Layout responsivo                   | ✅ 100% | Sidebar colapsável e painel de ponto flutuante sobre a planta — nenhum dos dois disputa espaço com a planta, que sempre ocupa a largura toda disponível (ADR-018)     |
 | Navegação na planta (zoom/mover)    | ✅ 100% | Zoom 25%–400% (+/−) e mover por clique-e-arraste; réguas se realinham automaticamente com o zoom (ADR-030)                                                            |
-| Editor vetorial de paredes          | ✅ 100% | Camada independente (SVG) de segmentos de reta representando paredes, com desenho encadeado, snap entre extremidades pra fechar ambientes, seleção/movimentação de vértice ou parede inteira, exclusão (com cascata ao excluir um vértice compartilhado), zoom/pan reaproveitados do ADR-030, e painel colapsável de camadas (Medições/Imagem/Objetos) à direita. Camada puramente visual — não influencia o cálculo do heatmap (ADR-041) |
+| Editor vetorial de paredes          | ✅ 100% | Camada independente (SVG) de segmentos de reta representando paredes, com desenho encadeado, snap entre extremidades pra fechar ambientes, seleção/movimentação de vértice ou parede inteira, exclusão (com cascata ao excluir um vértice compartilhado), zoom/pan reaproveitados do ADR-030, e toolbar vertical à direita com dropdown de camadas (Heatmap/Medições/Imagem/Objetos). Camada puramente visual — não influencia o cálculo do heatmap (ADR-041) |
 
 ### Bloqueios do produto
 

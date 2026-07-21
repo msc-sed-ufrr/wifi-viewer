@@ -91,6 +91,15 @@ export function PointPanel({
       </header>
 
       <div className="point-panel__actions">
+        <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
+          Captura ao vivo
+        </button>
+        {!scanAvailable && (
+          <p className="point-panel__hint">
+            Captura ao vivo indisponível neste sistema — use importação de arquivo.
+          </p>
+        )}
+
         <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>
           Importar arquivo de scan
         </button>
@@ -101,15 +110,6 @@ export function PointPanel({
           hidden
           onChange={handleFileChange}
         />
-
-        <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
-          Captura ao vivo
-        </button>
-        {!scanAvailable && (
-          <p className="point-panel__hint">
-            Captura ao vivo indisponível neste sistema — use importação de arquivo.
-          </p>
-        )}
 
         <button type="button" disabled={readings.length === 0} onClick={handleExportCsv}>
           Exportar CSV

@@ -171,7 +171,8 @@ body {
 
 .sidebar__row {
   display: flex;
-  align-items: center;
+  /* stretch: o ⋯ (menu) herda a mesma altura do botão da planta ativa/nome do projeto. */
+  align-items: stretch;
   gap: 2px;
 }
 
@@ -181,10 +182,11 @@ body {
 
 .sidebar__rename-btn {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  /* stretch via .sidebar__row — sem height fixa, casa com o botão da planta. */
+  align-self: stretch;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: #9ca3af;
   font-size: 11px;
@@ -192,6 +194,9 @@ body {
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar__rename-btn:hover {
@@ -202,6 +207,8 @@ body {
 .sidebar__menu {
   position: relative;
   flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
 }
 
 .sidebar__row:hover .sidebar__menu-btn {
@@ -212,10 +219,11 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  /* Mesma altura do .sidebar__floor-plan / .sidebar__project-name (stretch da row). */
+  align-self: stretch;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: #9ca3af;
   font-size: 13px;
@@ -315,8 +323,10 @@ body {
 
 .sidebar__floor-plan,
 .sidebar__add-floor-plan {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
+  min-height: 28px;
   text-align: left;
   padding: 6px 8px;
   border: none;
@@ -426,12 +436,6 @@ body {
   border: 1px solid #d1d5db;
 }
 
-.toolbar__checkbox {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .toolbar__button {
   display: inline-flex;
   align-items: center;
@@ -448,12 +452,6 @@ body {
 .toolbar__button:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-.toolbar__button--active {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1e40af;
 }
 
 .toolbar__button--danger {
@@ -488,64 +486,18 @@ body {
   display: flex;
 }
 
-/* Painel de camadas/editor de paredes, à direita do workspace (ADR-041) — mesmo padrão de
-   colapso da .sidebar à esquerda, espelhado e com tema claro (ferramenta, não navegação). */
+/* Toolbar vertical do editor, à direita do workspace (ADR-041/045) — faixa estreita só de
+   ícones, no padrão da barra lateral de um app de imagem/vetor. */
 .wall-editor-panel {
-  width: 240px;
+  width: 64px;
   flex-shrink: 0;
   background: #ffffff;
   border-left: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 14px;
+  gap: 10px;
+  padding: 10px 8px;
   overflow-y: auto;
-}
-
-.wall-editor-panel--collapsed {
-  width: 36px;
-  align-items: center;
-  padding-top: 12px;
-  gap: 0;
-}
-
-.wall-editor-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.wall-editor-panel__header h2,
-.wall-editor-panel__section h2 {
-  margin: 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #6b7280;
-}
-
-.wall-editor-panel__toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #f9fafb;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.wall-editor-panel__toggle:hover {
-  background: #f3f4f6;
-}
-
-.wall-editor-panel__section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .wall-editor-panel__checkbox {
@@ -554,44 +506,183 @@ body {
   gap: 8px;
   font-size: 13px;
   color: #374151;
-}
-
-.wall-editor-panel__tool-group {
-  display: flex;
-  gap: 8px;
-}
-
-.wall-editor-panel__button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #f9fafb;
-  font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.wall-editor-panel__tool-group .wall-editor-panel__button {
-  flex: 1;
+/* Toolbar vertical de ícones (estilo painel lateral de editor de imagem/vetor). */
+.wall-editor-panel__toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 
-.wall-editor-panel__button:disabled {
-  opacity: 0.5;
+.wall-editor-panel__toolbar-divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: #e5e7eb;
+}
+
+.wall-editor-panel__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #111827;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.wall-editor-panel__tool:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.wall-editor-panel__tool:disabled {
+  opacity: 0.45;
   cursor: default;
 }
 
-.wall-editor-panel__button--active {
+.wall-editor-panel__tool--active {
   background: #dbeafe;
   border-color: #93c5fd;
   color: #1e40af;
 }
 
-.wall-editor-panel__button--danger {
+.wall-editor-panel__tool--active:hover:not(:disabled) {
+  background: #bfdbfe;
+  border-color: #60a5fa;
+}
+
+.wall-editor-panel__tool--danger {
   color: #b91c1c;
   border-color: #fecaca;
+}
+
+.wall-editor-panel__tool--danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+/* Controle global de espessura — mesmo invólucro visual dos botões da toolbar (borda/fundo). */
+.wall-editor-panel__stroke-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 2px 4px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.wall-editor-panel__stroke-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  line-height: 0;
+  cursor: default;
+}
+
+.wall-editor-panel__stroke-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+}
+
+.wall-editor-panel__stroke-nudge {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wall-editor-panel__stroke-nudge:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.wall-editor-panel__stroke-nudge:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.wall-editor-panel__stroke-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.wall-editor-panel__stroke-input:focus {
+  outline: none;
+}
+
+/* Texto só para leitores de tela — ícone Line Weight já comunica o significado na UI. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wall-layer--ruler {
+  cursor: cell;
+}
+
+/* Botão "Camadas" + dropdown de visibilidade. O menu usa position:fixed (top/right via JS)
+   porque .workspace__body tem overflow:hidden e cortaria um absolute saindo pra esquerda.
+   Padrão de fechar-ao-clicar-fora igual ao .sidebar__menu. */
+.wall-editor-panel__layers {
+  position: relative;
+}
+
+.wall-editor-panel__layers-dropdown {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 150px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* Distribuição de canais */
@@ -698,6 +789,17 @@ body {
   justify-content: center;
   background: #e5e7eb;
   padding: 16px;
+  /* Espaço / botão do meio = pan style maps (ADR-030). */
+  cursor: default;
+}
+
+.floor-plan-canvas--pan {
+  cursor: grab;
+}
+
+.floor-plan-canvas--panning {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .floor-plan-canvas__grid {
@@ -754,18 +856,35 @@ body {
 .floor-plan-canvas__surface {
   /* largura real controlada via style inline (zoom, ver ADR-030) — 100% aqui é só o valor
      inicial antes do primeiro render calcular o zoom atual. Sem max-width: exceder 100%
-     é exatamente como o zoom > 100% funciona. */
+     é exatamente como o zoom > 100% funciona.
+     Default = default (não cria pontos): crosshair só quando o toggle "Adicionar pontos"
+     está armado (ver --placing) — evita sugerir criar ponto com o modo desarmado. */
   width: 100%;
   height: auto;
   background: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  cursor: crosshair;
+  cursor: default;
+}
+
+/* Cursor custom: Material "Location On" — hotspot na ponta inferior do pin (12 23). */
+.floor-plan-canvas__surface--placing {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 -960 960 960'%3E%3Cpath fill='%231e40af' stroke='%23ffffff' stroke-width='24' paint-order='stroke' d='M536.5-503.5Q560-527 560-560t-23.5-56.5Q513-640 480-640t-56.5 23.5Q400-593 400-560t23.5 56.5Q447-480 480-480t56.5-23.5ZM480-186q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z'/%3E%3C/svg%3E") 12 23, crosshair;
 }
 
 .floor-plan-canvas__surface--calibrating {
   cursor: cell;
   outline: 2px dashed #dc2626;
   outline-offset: 2px;
+}
+
+.toolbar__button--active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.floor-plan-canvas__surface--pan-ready {
+  cursor: grab;
 }
 
 .floor-plan-canvas__surface--panning {
@@ -788,9 +907,23 @@ body {
   top: 0;
   left: 0;
   height: auto;
+  /* Default none no CSS — o inline style do root sobe pra auto só no modo de edição.
+     Com a régua armada o root fica none e só as arestas (stroke) capturam clique;
+     cliques vazios atravessam pro canvas de calibração. */
+  pointer-events: none;
 }
 
-.wall-layer--draw {
+/* Régua: filhos com hit ativo precisam reativar pointer-events mesmo com o root em none. */
+.wall-layer--ruler .wall-layer__wall-hit {
+  /* value real vem do style inline (stroke|none); esta regra só garante que o cascade
+     não herde nowhere o `none` do ancestral de um jeito que some o hit. */
+  cursor: cell;
+}
+
+.wall-layer--draw,
+.wall-layer--rect,
+.wall-layer--circle,
+.wall-layer--arc {
   cursor: crosshair;
 }
 

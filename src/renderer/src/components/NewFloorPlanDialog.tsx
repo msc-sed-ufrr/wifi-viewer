@@ -3,7 +3,11 @@ import { createFloorPlan, createProject } from '../modules/projects/api'
 import { createPoint } from '../modules/points/api'
 import { addReadings } from '../modules/readings/api'
 import { parseConsolidatedCsv, resolveImportedPosition, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
-import { loadImageDimensions, validateFloorPlanImageFile } from '../lib/imageDimensions'
+import {
+  createBlankFloorPlanImage,
+  loadImageDimensions,
+  validateFloorPlanImageFile
+} from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
 
 interface Props {
@@ -112,8 +116,10 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault()
 
-    if (!file) {
-      setError('Selecione uma imagem da planta.')
+    // CSV consolidado carrega posições em px da imagem original — sem imagem, importar
+    // pontos numa planta em branco enganaria o usuário (dimensões finais ≠ as do export).
+    if (csvGroups && !file) {
+      setError('Importe uma imagem da planta para carregar o CSV de leituras (as posições dependem dela).')
       return
     }
 
@@ -121,20 +127,30 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     setError(null)
 
     try {
-      const { width, height } = await loadImageDimensions(file)
       const targetProject = project ?? (await createProject(projectName.trim() || 'Meu levantamento'))
+
+      // Sem arquivo: planta em branco (~40 m × 30 m, pré-calibrada) pra desenhar arestas.
+      const imageSource = file
+        ? { ...(await loadImageDimensions(file)), blob: file as Blob, calibration: undefined }
+        : await createBlankFloorPlanImage().then((blank) => ({
+            width: blank.width,
+            height: blank.height,
+            blob: blank.blob,
+            calibration: blank.calibration
+          }))
 
       const floorPlan = await createFloorPlan(
         targetProject.id,
         floorPlanName.trim() || 'Nova planta',
-        file,
-        width,
-        height
+        imageSource.blob,
+        imageSource.width,
+        imageSource.height,
+        imageSource.calibration
       )
 
       if (csvGroups) {
         for (const group of csvGroups) {
-          const { x, y } = resolveImportedPosition(group, width, height)
+          const { x, y } = resolveImportedPosition(group, imageSource.width, imageSource.height)
           const point = await createPoint(floorPlan.id, x, y)
           await addReadings(point.id, group.readings)
         }
@@ -190,13 +206,17 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
         </label>
 
         <label>
-          Imagem da planta
+          Imagem da planta (opcional)
           <input
             type="file"
             accept=".png,.jpg,.jpeg,.webp"
             onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
           />
         </label>
+        <p className="modal__hint">
+          Sem imagem, a planta nasce em branco (~40 m × 30 m, pré-calibrada) pra desenhar as
+          arestas do terreno.
+        </p>
 
         {previewUrl && file && (
           <div>
@@ -228,7 +248,8 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
         </label>
         <p className="modal__hint">
           Recria os pontos de um CSV consolidado (exportado por planta ou levantamento) —
-          as posições só fazem sentido se a imagem acima for a mesma do export original.
+          as posições só fazem sentido se a imagem acima for a mesma do export original
+          (exige imagem).
         </p>
 
         {csvFile && csvGroups && (

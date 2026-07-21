@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { Project, FloorPlan, MeasurementPoint, StoredNetworkReading, WallVertex, Wall } from '../../types/domain'
+import type { Project, FloorPlan, MeasurementPoint, StoredNetworkReading, WallVertex, Wall, WallShape } from '../../types/domain'
 
 interface WifiViewerDB extends DBSchema {
   projects: { key: string; value: Project }
@@ -8,10 +8,12 @@ interface WifiViewerDB extends DBSchema {
   readings: { key: string; value: StoredNetworkReading; indexes: { byPoint: string } }
   wallVertices: { key: string; value: WallVertex; indexes: { byFloorPlan: string } }
   walls: { key: string; value: Wall; indexes: { byFloorPlan: string } }
+  /** Formas paramétricas (circle/arc) — ADR-046. Valores schemaless; polígonos tesselados antigos continuam como `walls` com `groupId`. */
+  wallShapes: { key: string; value: WallShape; indexes: { byFloorPlan: string } }
 }
 
 const DB_NAME = 'wifi-viewer'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBPDatabase<WifiViewerDB>> | null = null
 
@@ -41,6 +43,13 @@ export function getDb(): Promise<IDBPDatabase<WifiViewerDB>> {
 
           const walls = db.createObjectStore('walls', { keyPath: 'id' })
           walls.createIndex('byFloorPlan', 'floorPlanId')
+        }
+
+        // ADR-046: store de formas paramétricas. Sem reescrever paredes antigas — os valores
+        // são schemaless e os polígonos tesselados (Wall + groupId) sobrevivem inalterados.
+        if (oldVersion < 3) {
+          const wallShapes = db.createObjectStore('wallShapes', { keyPath: 'id' })
+          wallShapes.createIndex('byFloorPlan', 'floorPlanId')
         }
       }
     })

@@ -6,6 +6,7 @@ import type {
   Project,
   StoredNetworkReading,
   Wall,
+  WallShape,
   WallVertex
 } from '../types/domain'
 import {
@@ -35,27 +36,54 @@ import type { HeatmapInput } from '../modules/heatmap/useHeatmap'
 import { dbmToSigma, distanceToSigmaMeters } from '../modules/heatmap/colorScale'
 import { buildChannelUsage } from '../modules/channels/channelUsage'
 import { getPixelsPerMeter } from '../lib/calibration'
+import { clampToImage } from '../lib/clampToImage'
 import {
   countWallsForVertex,
   createWall,
+  createWallShape,
   createWallVertex,
+  createWallsWithGroup,
   deleteWall,
+  deleteWallGroup,
+  deleteWallShape,
   deleteWallVertex,
+  listWallShapes,
   listWallVertices,
   listWalls,
   moveWall,
+  moveWallGroup,
   moveWallVertex,
-  replaceWallsForFloorPlan
+  replaceWallsForFloorPlan,
+  updateWall,
+  updateWallShape,
+  type ShapeSegmentInput,
+  type WallShapeInput
 } from '../modules/walls/api'
+import { translateShape, updateArcHandle, updateCircleEdge, type Point2D, type ShapeClamp, type ShapeHandleRole } from '../modules/walls/shapes'
 import { Toolbar } from './Toolbar'
 import { FloorPlanCanvas } from './FloorPlanCanvas'
 import { PointPanel } from './PointPanel'
 import { Legend } from './Legend'
 import { ChannelChart } from './ChannelChart'
 import { CalibrationDialog } from './CalibrationDialog'
+import { WallMeasureDialog } from './WallMeasureDialog'
 import { CloseIcon } from './icons'
 import { WallEditorPanel } from './WallEditorPanel'
-import type { SnapPoint, WallSelection } from './WallLayer'
+import type { SnapPoint, WallSelection, WallTool } from './WallLayer'
+
+/** Snapshot do dialog Size/Thickness aberto ao clicar numa aresta com a régua armada. */
+interface PendingWallMeasure {
+  wallId: string
+  /** Ids que recebem a espessura: a própria aresta, ou todas do groupId se houver. */
+  thicknessWallIds: string[]
+  lengthPx: number
+  sizeUnit: 'm' | 'px'
+  initialSize: number
+  /** true = confirmar size define calibração da planta a partir desta aresta (planta ainda sem escala). */
+  sizeSetsCalibration: boolean
+  sizeEditable: boolean
+  initialThickness: number
+}
 
 interface Props {
   project: Project
@@ -63,6 +91,7 @@ interface Props {
 }
 
 const MIN_HEATMAP_POINTS = 2
+const DEFAULT_WALL_STROKE_WIDTH = 3
 
 export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.Element {
   const [floorPlan, setFloorPlan] = useState(initialFloorPlan)
@@ -82,18 +111,45 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   // Editor de paredes (ADR-041) — camada independente de vetores, ver WallLayer.tsx.
   const [vertices, setVertices] = useState<WallVertex[]>([])
   const [walls, setWalls] = useState<Wall[]>([])
+  /** Formas paramétricas (circle/arc) — ADR-046. Entidades matemáticas editáveis, não tesseladas. */
+  const [shapes, setShapes] = useState<WallShape[]>([])
   const [wallEditing, setWallEditing] = useState(false)
-  const [wallTool, setWallTool] = useState<'draw' | 'select'>('draw')
+  const [wallTool, setWallTool] = useState<WallTool>('draw')
   const [wallSelection, setWallSelection] = useState<WallSelection | null>(null)
   const [confirmingDeleteVertex, setConfirmingDeleteVertex] = useState<{ id: string; wallCount: number } | null>(null)
-  /** Undo/redo das ações de parede (ADR-044) — cada item é um snapshot completo de vértices+paredes
-   * ANTES da ação correspondente. Baseado em snapshot, não em inverter cada ação manualmente. */
-  const [wallUndoStack, setWallUndoStack] = useState<Array<{ vertices: WallVertex[]; walls: Wall[] }>>([])
-  const [wallRedoStack, setWallRedoStack] = useState<Array<{ vertices: WallVertex[]; walls: Wall[] }>>([])
+  /**
+   * Undo/redo do editor de paredes + calibração de escala (ADR-044 estendido).
+   * Cada item é um snapshot completo ANTES da ação: vértices+paredes+shapes+calibration.
+   * Inclui calibração porque Size da régua e "Calibrar escala" também mutam estado
+   * da planta e precisam ser desfeitos/refeitos junto com a geometria.
+   */
+  type EditorSnapshot = {
+    vertices: WallVertex[]
+    walls: Wall[]
+    shapes: WallShape[]
+    calibration: FloorPlanCalibration | undefined
+  }
+  const [wallUndoStack, setWallUndoStack] = useState<EditorSnapshot[]>([])
+  const [wallRedoStack, setWallRedoStack] = useState<EditorSnapshot[]>([])
   /** Painel de camadas (ADR-041) — cada uma só alterna visibilidade, nunca apaga dado. */
   const [showMeasurements, setShowMeasurements] = useState(true)
   const [showImage, setShowImage] = useState(true)
   const [showWalls, setShowWalls] = useState(true)
+  /**
+   * Toggle "Adicionar pontos" da Toolbar — desarmado por padrão. Qualquer clique vazio na
+   * planta só cria medição com este modo armado; evita pontos órfãos por clique acidental.
+   */
+  const [placingPoints, setPlacingPoints] = useState(false)
+
+  /** Valor único de espessura entre todas as arestas da planta; null se misto ou se não há paredes. */
+  const allWallsStrokeWidth = useMemo<number | null>(() => {
+    if (walls.length === 0) return null
+    const widths = new Set(walls.map((wall) => wall.strokeWidth ?? DEFAULT_WALL_STROKE_WIDTH))
+    return widths.size === 1 ? [...widths][0]! : null
+  }, [walls])
+
+  /** Dialog Size/Thickness da ferramenta régua (clique em aresta). */
+  const [pendingWallMeasure, setPendingWallMeasure] = useState<PendingWallMeasure | null>(null)
 
   const selectedPointId = useUiStore((state) => state.selectedPointId)
   const selectPoint = useUiStore((state) => state.selectPoint)
@@ -105,16 +161,18 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   }, [initialFloorPlan])
 
   const reload = useCallback(async () => {
-    const [pts, readings, vs, ws] = await Promise.all([
+    const [pts, readings, vs, ws, shps] = await Promise.all([
       listPoints(floorPlan.id),
       listReadingsForFloorPlan(floorPlan.id),
       listWallVertices(floorPlan.id),
-      listWalls(floorPlan.id)
+      listWalls(floorPlan.id),
+      listWallShapes(floorPlan.id)
     ])
     setPoints(pts)
     setReadingsByPoint(readings)
     setVertices(vs)
     setWalls(ws)
+    setShapes(shps)
   }, [floorPlan.id])
 
   useEffect(() => {
@@ -303,12 +361,15 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     if (calibrating) {
       setCalibrating(false)
       setPendingCalibrationPoints([])
+      setPendingWallMeasure(null)
       return
     }
     selectPoint(null)
     setPendingCalibrationPoints([])
+    setPendingWallMeasure(null)
     setWallEditing(false)
     setWallSelection(null)
+    setPlacingPoints(false)
     setCalibrating(true)
   }
 
@@ -326,6 +387,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     setCalibrating(false)
     setPendingCalibrationPoints([])
 
+    // Snapshot pré-calibração — undo restaura a escala anterior (ou a ausência dela).
+    pushWallUndoSnapshot()
     const calibration: FloorPlanCalibration = { pointA, pointB, realDistanceMeters }
     const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
     if (updated) setFloorPlan(updated)
@@ -333,7 +396,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
 
   /** Clicar na ferramenta já ativa entra/sai do modo de edição de paredes — mesmo comportamento de um app
    * vetorial (Illustrator/Corel): selecionar a ferramenta é o próprio gesto de ativar o modo, sem pré-toggle. */
-  function handleSelectWallTool(tool: 'draw' | 'select'): void {
+  function handleSelectWallTool(tool: WallTool): void {
     if (wallEditing && wallTool === tool) {
       setWallEditing(false)
       setWallSelection(null)
@@ -342,16 +405,48 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     selectPoint(null)
     setCalibrating(false)
     setPendingCalibrationPoints([])
+    setPlacingPoints(false)
     setWallSelection(null)
     setWallTool(tool)
     setWallEditing(true)
   }
 
-  /** Empilha o estado ATUAL (pré-mutação) de vértices/paredes — chamado no início de toda ação que muda a
-   * geometria, antes de persistir. Uma nova ação sempre invalida o redo (mesma regra de qualquer editor). */
+  /** Armar/desarmar criação de pontos — saem calibração e edição de paredes (só um modo "agressivo" de clique na planta por vez). */
+  function handleTogglePlacingPoints(): void {
+    if (placingPoints) {
+      setPlacingPoints(false)
+      return
+    }
+    setCalibrating(false)
+    setPendingCalibrationPoints([])
+    setWallEditing(false)
+    setWallSelection(null)
+    selectPoint(null)
+    setPlacingPoints(true)
+  }
+
+  /** Empilha o estado ATUAL (pré-mutação) de vértices/paredes/shapes/calibração — chamado no
+   * início de toda ação que muda a geometria OU a escala, antes de persistir. Uma nova ação
+   * sempre invalida o redo (mesma regra de qualquer editor). */
   function pushWallUndoSnapshot(): void {
-    setWallUndoStack((stack) => [...stack, { vertices, walls }])
+    setWallUndoStack((stack) => [
+      ...stack,
+      { vertices, walls, shapes, calibration: floorPlan.calibration }
+    ])
     setWallRedoStack([])
+  }
+
+  /** Restaura snapshot completo (geometria + calibração). Calibração undefined limpa a escala. */
+  async function restoreEditorSnapshot(snapshot: EditorSnapshot): Promise<void> {
+    setWallSelection(null)
+    await replaceWallsForFloorPlan(floorPlan.id, snapshot.vertices, snapshot.walls, snapshot.shapes)
+    const updated = await setFloorPlanCalibration(floorPlan.id, snapshot.calibration)
+    if (updated) setFloorPlan(updated)
+    await reload()
+  }
+
+  function currentEditorSnapshot(): EditorSnapshot {
+    return { vertices, walls, shapes, calibration: floorPlan.calibration }
   }
 
   /**
@@ -366,7 +461,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     pushWallUndoSnapshot()
     const startVertexId = start.vertexId ?? (await createWallVertex(floorPlan.id, start.x, start.y)).id
     const endVertexId = end.vertexId ?? (await createWallVertex(floorPlan.id, end.x, end.y)).id
-    await createWall(floorPlan.id, startVertexId, endVertexId)
+    // Se todas as arestas existentes já têm a mesma espessura, herda pra nova linha.
+    await createWall(floorPlan.id, startVertexId, endVertexId, allWallsStrokeWidth ?? undefined)
     await reload()
     return { startVertexId, endVertexId }
   }
@@ -383,12 +479,200 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     await reload()
   }
 
+  /**
+   * Cria uma forma (retângulo/círculo/arco — ADR-045) como UM passo de undo: um único snapshot
+   * antes do batch, todas as paredes/vértices numa transação só (createWallsWithGroup), um reload.
+   */
+  async function handleCreateShape(segments: ShapeSegmentInput[]): Promise<void> {
+    if (segments.length === 0) return
+    pushWallUndoSnapshot()
+    // Mesma herança de espessura das linhas livres — retângulo nasce com o stroke comum atual.
+    await createWallsWithGroup(floorPlan.id, segments, crypto.randomUUID(), allWallsStrokeWidth ?? undefined)
+    setWallSelection(null)
+    await reload()
+  }
+
+  async function handleMoveGroup(groupId: string, dx: number, dy: number): Promise<void> {
+    pushWallUndoSnapshot()
+    await moveWallGroup(floorPlan.id, groupId, dx, dy, floorPlan.imageWidth, floorPlan.imageHeight)
+    await reload()
+  }
+
+  /**
+   * Cria uma forma PARAMÉTRICA (circle/arc) — ADR-046: 1 snapshot de undo, sem tesselar, 0 vértices no grafo.
+   * Retângulo continua em `handleCreateShape` (tesselado + groupId, ADR-045).
+   */
+  async function handleCreateWallShape(input: WallShapeInput): Promise<void> {
+    pushWallUndoSnapshot()
+    await createWallShape(floorPlan.id, input)
+    setWallSelection(null)
+    await reload()
+  }
+
+  /** Translação rígida do corpo de uma forma paramétrica — clamp na imagem no próprio `translateShape`. */
+  async function handleMoveShape(id: string, dx: number, dy: number): Promise<void> {
+    const shape = shapes.find((candidate) => candidate.id === id)
+    if (!shape) return
+    pushWallUndoSnapshot()
+    const clamp: ShapeClamp = (point) => clampToImage(point.x, point.y, floorPlan.imageWidth, floorPlan.imageHeight)
+    await updateWallShape(translateShape(shape, dx, dy, clamp))
+    await reload()
+  }
+
+  /** Edita um handle de forma (borda do círculo / p1,p2,pMid do arco) — clamp + rejeição degenerada nos helpers. */
+  async function handleUpdateShapeHandle(id: string, role: ShapeHandleRole, point: Point2D): Promise<void> {
+    const shape = shapes.find((candidate) => candidate.id === id)
+    if (!shape) return
+    pushWallUndoSnapshot()
+    const clamp: ShapeClamp = (p) => clampToImage(p.x, p.y, floorPlan.imageWidth, floorPlan.imageHeight)
+    let updated: WallShape
+    if (shape.kind === 'circle' && role === 'edge') {
+      updated = updateCircleEdge(shape, point, clamp)
+    } else if (shape.kind === 'arc' && role !== 'edge') {
+      updated = updateArcHandle(shape, role, point, clamp)
+    } else {
+      return
+    }
+    await updateWallShape(updated)
+    await reload()
+  }
+
+  /** Ajusta a espessura de TODAS as arestas da planta de uma vez — um único snapshot de undo (ADR-044). */
+  async function handleChangeAllWallsStrokeWidth(value: number): Promise<void> {
+    if (walls.length === 0) return
+    const targets = walls.filter((wall) => (wall.strokeWidth ?? DEFAULT_WALL_STROKE_WIDTH) !== value)
+    if (targets.length === 0) return
+    pushWallUndoSnapshot()
+    await Promise.all(targets.map((wall) => updateWall({ ...wall, strokeWidth: value })))
+    await reload()
+  }
+
+  /**
+   * Clique em aresta com a régua armada — abre dialog Size/Thickness.
+   * Size em metros se a planta está calibrada (permite redimensionar a aresta); em px se não.
+   * Sem calibração, o size editável define a escala da planta a partir desta aresta.
+   */
+  function handleMeasureWall(wallId: string): void {
+    const wall = walls.find((candidate) => candidate.id === wallId)
+    if (!wall) return
+    const start = vertices.find((vertex) => vertex.id === wall.startVertexId)
+    const end = vertices.find((vertex) => vertex.id === wall.endVertexId)
+    if (!start || !end) return
+    const lengthPx = Math.hypot(end.x - start.x, end.y - start.y)
+    if (lengthPx < 1e-6) return
+    const ppm = getPixelsPerMeter(floorPlan)
+    const calibrated = ppm !== null
+    const thicknessWallIds = wall.groupId
+      ? walls.filter((candidate) => candidate.groupId === wall.groupId).map((candidate) => candidate.id)
+      : [wall.id]
+    const thicknesses = new Set(
+      thicknessWallIds.map((id) => {
+        const candidate = walls.find((w) => w.id === id)
+        return candidate?.strokeWidth ?? DEFAULT_WALL_STROKE_WIDTH
+      })
+    )
+    setPendingCalibrationPoints([])
+    setPendingWallMeasure({
+      wallId,
+      thicknessWallIds,
+      lengthPx,
+      // Sem calibração o campo Size pede metros reais (define a escala); com calibração mostra o comprimento atual em m.
+      sizeUnit: 'm',
+      initialSize: calibrated ? lengthPx / ppm! : 0,
+      sizeSetsCalibration: !calibrated,
+      sizeEditable: true,
+      initialThickness: thicknesses.size === 1 ? [...thicknesses][0]! : DEFAULT_WALL_STROKE_WIDTH
+    })
+  }
+
+  function handleCancelWallMeasure(): void {
+    setPendingWallMeasure(null)
+  }
+
+  async function handleConfirmWallMeasure(values: { size: number; thickness: number }): Promise<void> {
+    if (!pendingWallMeasure) return
+    const { wallId, thicknessWallIds, lengthPx, sizeSetsCalibration } = pendingWallMeasure
+    const wall = walls.find((candidate) => candidate.id === wallId)
+    if (!wall) {
+      setPendingWallMeasure(null)
+      return
+    }
+    const start = vertices.find((vertex) => vertex.id === wall.startVertexId)
+    const end = vertices.find((vertex) => vertex.id === wall.endVertexId)
+    if (!start || !end) {
+      setPendingWallMeasure(null)
+      return
+    }
+
+    setPendingWallMeasure(null)
+    pushWallUndoSnapshot()
+
+    // 1) Espessura — aresta isolada ou grupo inteiro.
+    await Promise.all(
+      thicknessWallIds.map(async (id) => {
+        const candidate = walls.find((w) => w.id === id)
+        if (!candidate || (candidate.strokeWidth ?? DEFAULT_WALL_STROKE_WIDTH) === values.thickness) return
+        await updateWall({ ...candidate, strokeWidth: values.thickness })
+      })
+    )
+
+    // 2) Size (opcional — NaN = usuário só mudou thickness):
+    //    - planta SEM calibração + sizeSetsCalibration: values.size em METROS define a
+    //      calibração da planta usando os dois vértices da aresta como pointA/pointB.
+    //    - planta COM calibração: values.size em METROS; redimensiona a aresta mantendo o
+    //      start fixo e movendo o end na mesma direção.
+    const sizeProvided = Number.isFinite(values.size) && values.size > 0
+    if (sizeProvided && sizeSetsCalibration) {
+      const calibration: FloorPlanCalibration = {
+        pointA: { x: start.x, y: start.y },
+        pointB: { x: end.x, y: end.y },
+        realDistanceMeters: values.size
+      }
+      const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
+      if (updated) setFloorPlan(updated)
+    } else if (sizeProvided && floorPlan.calibration) {
+      const ppm = getPixelsPerMeter(floorPlan)
+      if (ppm) {
+        const targetLengthPx = values.size * ppm
+        const scale = targetLengthPx / lengthPx
+        if (Number.isFinite(scale) && scale > 0 && Math.abs(scale - 1) > 1e-6) {
+          const newEnd = clampToImage(
+            start.x + (end.x - start.x) * scale,
+            start.y + (end.y - start.y) * scale,
+            floorPlan.imageWidth,
+            floorPlan.imageHeight
+          )
+          await moveWallVertex(end.id, newEnd.x, newEnd.y, floorPlan.imageWidth, floorPlan.imageHeight)
+        }
+      }
+    }
+
+    await reload()
+  }
+
   /** Botão "Excluir" do painel — despacha conforme o tipo de seleção atual. */
   async function handleDeleteWallSelection(): Promise<void> {
     if (!wallSelection) return
     if (wallSelection.kind === 'wall') {
       pushWallUndoSnapshot()
       await deleteWall(wallSelection.id)
+      setWallSelection(null)
+      await reload()
+      return
+    }
+    // Grupo: exclui só as próprias paredes do grupo (+ vértices órmãos delas) — sem cascata pra
+    // paredes de fora, então sem modal de confirmação (diferente do vértice, ver abaixo).
+    if (wallSelection.kind === 'group') {
+      pushWallUndoSnapshot()
+      await deleteWallGroup(floorPlan.id, wallSelection.id)
+      setWallSelection(null)
+      await reload()
+      return
+    }
+    // Forma paramétrica (circle/arc) — ADR-046: 1 entidade, sem vértices no grafo, sem modal.
+    if (wallSelection.kind === 'shape') {
+      pushWallUndoSnapshot()
+      await deleteWallShape(wallSelection.id)
       setWallSelection(null)
       await reload()
       return
@@ -422,24 +706,20 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     if (wallUndoStack.length === 0) return
     const previous = wallUndoStack[wallUndoStack.length - 1]
     setWallUndoStack((stack) => stack.slice(0, -1))
-    setWallRedoStack((stack) => [...stack, { vertices, walls }])
-    setWallSelection(null)
-    await replaceWallsForFloorPlan(floorPlan.id, previous.vertices, previous.walls)
-    await reload()
+    setWallRedoStack((stack) => [...stack, currentEditorSnapshot()])
+    await restoreEditorSnapshot(previous)
   }
 
   async function handleRedoWalls(): Promise<void> {
     if (wallRedoStack.length === 0) return
     const next = wallRedoStack[wallRedoStack.length - 1]
     setWallRedoStack((stack) => stack.slice(0, -1))
-    setWallUndoStack((stack) => [...stack, { vertices, walls }])
-    setWallSelection(null)
-    await replaceWallsForFloorPlan(floorPlan.id, next.vertices, next.walls)
-    await reload()
+    setWallUndoStack((stack) => [...stack, currentEditorSnapshot()])
+    await restoreEditorSnapshot(next)
   }
 
-  /** Atalhos de desfazer/refazer de paredes (ADR-044) — Cmd/Ctrl+Z e Cmd/Ctrl+Shift+Z (+ Ctrl+Y, convenção Windows).
-   * Ignora quando o foco está num campo de texto, pra não atropelar o undo nativo do navegador nesses campos. */
+  /** Atalhos de desfazer/refazer (paredes + calibração) — Cmd/Ctrl+Z e Cmd/Ctrl+Shift+Z (+ Ctrl+Y).
+   * Ignora quando o foco está num campo de texto, pra não atropelar o undo nativo do navegador. */
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
       const target = event.target
@@ -462,7 +742,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [wallUndoStack, wallRedoStack, vertices, walls, floorPlan.id])
+  }, [wallUndoStack, wallRedoStack, vertices, walls, shapes, floorPlan])
 
   return (
     <div className="workspace">
@@ -471,26 +751,44 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
         networkGroups={networkGroups}
         selectedNetworkKey={selectedNetworkKey}
         onSelectNetwork={selectNetwork}
-        showHeatmap={showHeatmap}
-        onToggleHeatmap={setShowHeatmap}
         band={band}
         onBandChange={setBand}
-        calibrating={calibrating}
-        onToggleCalibrate={handleToggleCalibrate}
+        placingPoints={placingPoints}
+        onTogglePlacingPoints={handleTogglePlacingPoints}
         onResetPoints={handleResetPoints}
         hasPoints={points.length > 0}
       />
 
-      {calibrating && pendingCalibrationPoints.length < 2 && (
+      {placingPoints && !calibrating && !wallEditing && (
+        <p className="workspace__notice">
+          Modo adicionar pontos ligado — clique na planta para criar um ponto de medição. Clique de
+          novo em &quot;Adicionar pontos&quot; para desarmar.
+        </p>
+      )}
+
+      {calibrating && !pendingWallMeasure && pendingCalibrationPoints.length < 2 && (
         <p className="workspace__notice">
           {pendingCalibrationPoints.length === 0
-            ? 'Clique no primeiro ponto de referência na planta.'
+            ? 'Régua armada — clique numa aresta para Size/Thickness, ou dois pontos na planta para calibrar a escala.'
             : 'Clique no segundo ponto de referência.'}
         </p>
       )}
 
       {pendingCalibrationPoints.length === 2 && (
         <CalibrationDialog onConfirm={handleConfirmCalibrationDialog} onCancel={handleCancelCalibrationDialog} />
+      )}
+
+      {pendingWallMeasure && (
+        <WallMeasureDialog
+          initialSize={pendingWallMeasure.initialSize}
+          sizeUnit={pendingWallMeasure.sizeSetsCalibration ? 'm' : pendingWallMeasure.sizeUnit}
+          sizeSetsCalibration={pendingWallMeasure.sizeSetsCalibration}
+          sizeEditable={pendingWallMeasure.sizeEditable}
+          initialThickness={pendingWallMeasure.initialThickness}
+          thicknessTargetCount={pendingWallMeasure.thicknessWallIds.length}
+          onConfirm={handleConfirmWallMeasure}
+          onCancel={handleCancelWallMeasure}
+        />
       )}
 
       {confirmingReset && (
@@ -554,6 +852,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
             pointReadingById={pointReadingById}
             onSelectPoint={selectPoint}
             onCreatePoint={handleCreatePoint}
+            placingPoints={placingPoints && !calibrating && !wallEditing}
             onMovePoint={handleMovePoint}
             onBulkMovePoints={handleBulkMovePoints}
             bulkMoveResetSignal={bulkMoveResetSignal}
@@ -568,11 +867,19 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
               tool: wallTool,
               vertices,
               walls,
+              shapes,
               selection: wallSelection,
               onSelect: setWallSelection,
               onCreateWall: handleCreateWall,
+              onCreateShape: handleCreateShape,
+              onCreateWallShape: handleCreateWallShape,
               onMoveVertex: handleMoveVertex,
-              onMoveWall: handleMoveWall
+              onMoveWall: handleMoveWall,
+              onMoveGroup: handleMoveGroup,
+              onMoveShape: handleMoveShape,
+              onUpdateShapeHandle: handleUpdateShapeHandle,
+              rulerActive: calibrating && !wallEditing,
+              onMeasureWall: handleMeasureWall
             }}
           />
 
@@ -595,17 +902,24 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
         </div>
 
         <WallEditorPanel
+          showHeatmap={showHeatmap}
+          onToggleShowHeatmap={setShowHeatmap}
           showMeasurements={showMeasurements}
           onToggleShowMeasurements={setShowMeasurements}
           showImage={showImage}
           onToggleShowImage={setShowImage}
           showWalls={showWalls}
           onToggleShowWalls={setShowWalls}
+          calibrating={calibrating}
+          onToggleCalibrate={handleToggleCalibrate}
           wallEditing={wallEditing}
           wallTool={wallTool}
           onSelectWallTool={handleSelectWallTool}
           hasSelection={wallSelection !== null}
           onDeleteSelection={handleDeleteWallSelection}
+          totalWallCount={walls.length}
+          allWallsStrokeWidth={allWallsStrokeWidth}
+          onChangeAllWallsStrokeWidth={handleChangeAllWallsStrokeWidth}
           canUndo={wallUndoStack.length > 0}
           canRedo={wallRedoStack.length > 0}
           onUndo={handleUndoWalls}
