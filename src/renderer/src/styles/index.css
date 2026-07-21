@@ -1352,6 +1352,33 @@ body {
   text-overflow: ellipsis;
 }
 
+body.theme-dark .point-panel__coords,
+body.theme-dark .point-panel__header button,
+body.theme-dark .point-panel__hint {
+  color: #9ca3af;
+}
+
+body.theme-dark .point-panel__actions button {
+  background: #1f2937;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+body.theme-dark .point-panel__actions button:hover:not(:disabled) {
+  background: #374151;
+  border-color: #6b7280;
+}
+
+body.theme-dark .point-panel__delete {
+  color: #fca5a5 !important;
+  border-color: #7f1d1d !important;
+}
+
+body.theme-dark .point-panel__readings th,
+body.theme-dark .point-panel__readings td {
+  border-bottom-color: #374151;
+}
+
 .workspace__error {
   position: fixed;
   bottom: 16px;
@@ -1473,6 +1500,38 @@ body {
   border-color: #fecaca;
   color: #b91c1c;
   font-weight: 600;
+}
+
+body.theme-dark .modal label {
+  color: #d1d5db;
+}
+
+body.theme-dark .modal__hint {
+  color: #9ca3af;
+}
+
+body.theme-dark .modal__warning {
+  color: #fde68a;
+  background: #3a2a06;
+  border-color: #92600a;
+}
+
+body.theme-dark .modal__actions button {
+  background: #1f2937;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+body.theme-dark .modal__actions button[type='submit'] {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+body.theme-dark .modal__actions button.modal__button--danger {
+  background: #450a0a;
+  border-color: #7f1d1d;
+  color: #fca5a5;
 }
 
 /* ImageAlignEditor (ADR-040) */
