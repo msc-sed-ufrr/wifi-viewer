@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { FloorPlan, Project } from '../types/domain'
+import {
+  AddIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DeleteIcon,
+  DownloadIcon,
+  EditIcon,
+  ImageIcon,
+  MoreVertIcon,
+  UploadIcon
+} from './icons'
 
 interface Props {
   projects: Project[]
@@ -110,7 +121,7 @@ export function Sidebar({
           onClick={() => setCollapsed(false)}
           title="Expandir levantamentos"
         >
-          »
+          <ChevronRightIcon width={16} height={16} />
         </button>
       </nav>
     )
@@ -130,7 +141,7 @@ export function Sidebar({
         <h2>Levantamentos</h2>
         <div className="sidebar__header-actions">
           <button type="button" className="sidebar__new-project" onClick={onNewProject} title="Novo levantamento">
-            +
+            <AddIcon width={16} height={16} />
           </button>
           <button
             type="button"
@@ -138,7 +149,7 @@ export function Sidebar({
             onClick={() => setCollapsed(true)}
             title="Recolher"
           >
-            «
+            <ChevronLeftIcon width={16} height={16} />
           </button>
         </div>
       </div>
@@ -171,7 +182,7 @@ export function Sidebar({
                         onClick={() => setOpenMenuId((id) => (id === project.id ? null : project.id))}
                         title="Mais opções"
                       >
-                        ⋮
+                        <MoreVertIcon width={16} height={16} />
                       </button>
                       {openMenuId === project.id && (
                         <div className="sidebar__menu-dropdown">
@@ -182,6 +193,7 @@ export function Sidebar({
                               setOpenMenuId(null)
                             }}
                           >
+                            <EditIcon width={16} height={16} />
                             Renomear
                           </button>
                           <button
@@ -192,6 +204,7 @@ export function Sidebar({
                               importInputRef.current?.click()
                             }}
                           >
+                            <UploadIcon width={16} height={16} />
                             Importar
                           </button>
                           <button
@@ -201,6 +214,7 @@ export function Sidebar({
                               setOpenMenuId(null)
                             }}
                           >
+                            <DownloadIcon width={16} height={16} />
                             Exportar
                           </button>
                         </div>
@@ -244,7 +258,7 @@ export function Sidebar({
                               onClick={() => setOpenMenuId((id) => (id === floorPlan.id ? null : floorPlan.id))}
                               title="Mais opções"
                             >
-                              ⋮
+                              <MoreVertIcon width={16} height={16} />
                             </button>
                             {openMenuId === floorPlan.id && (
                               <div className="sidebar__menu-dropdown">
@@ -255,6 +269,7 @@ export function Sidebar({
                                     setOpenMenuId(null)
                                   }}
                                 >
+                                  <EditIcon width={16} height={16} />
                                   Renomear
                                 </button>
                                 <button
@@ -265,6 +280,7 @@ export function Sidebar({
                                     replaceImageInputRef.current?.click()
                                   }}
                                 >
+                                  <ImageIcon width={16} height={16} />
                                   Substituir imagem
                                 </button>
                                 <button
@@ -275,6 +291,7 @@ export function Sidebar({
                                     importInputRef.current?.click()
                                   }}
                                 >
+                                  <UploadIcon width={16} height={16} />
                                   Importar
                                 </button>
                                 <button
@@ -284,6 +301,7 @@ export function Sidebar({
                                     setOpenMenuId(null)
                                   }}
                                 >
+                                  <DownloadIcon width={16} height={16} />
                                   Exportar
                                 </button>
                                 <button
@@ -294,6 +312,7 @@ export function Sidebar({
                                     setOpenMenuId(null)
                                   }}
                                 >
+                                  <DeleteIcon width={16} height={16} />
                                   Excluir
                                 </button>
                               </div>
@@ -310,7 +329,7 @@ export function Sidebar({
                     className="sidebar__add-floor-plan"
                     onClick={() => onNewFloorPlan(project)}
                   >
-                    + Nova planta
+                    <AddIcon width={14} height={14} /> Nova planta
                   </button>
                 </li>
               </ul>

@@ -28,7 +28,9 @@ export async function createFloorPlan(
   name: string,
   image: Blob,
   imageWidth: number,
-  imageHeight: number
+  imageHeight: number,
+  /** Opcional — plantas em branco já nascem calibradas (~40 m de largura). */
+  calibration?: FloorPlanCalibration
 ): Promise<FloorPlan> {
   const floorPlan: FloorPlan = {
     id: crypto.randomUUID(),
@@ -37,6 +39,7 @@ export async function createFloorPlan(
     image,
     imageWidth,
     imageHeight,
+    ...(calibration ? { calibration } : {}),
     createdAt: new Date().toISOString()
   }
   const db = await getDb()
@@ -46,7 +49,9 @@ export async function createFloorPlan(
 
 export async function listFloorPlans(projectId: string): Promise<FloorPlan[]> {
   const db = await getDb()
-  return db.getAllFromIndex('floorPlans', 'byProject', projectId)
+  const floorPlans = await db.getAllFromIndex('floorPlans', 'byProject', projectId)
+  // Ordem alfabética por nome (locale pt, case-insensitive) — sidebar e demais consumidores.
+  return floorPlans.sort((a, b) => a.name.localeCompare(b.name, 'pt', { sensitivity: 'base' }))
 }
 
 export async function getFloorPlan(id: string): Promise<FloorPlan | undefined> {

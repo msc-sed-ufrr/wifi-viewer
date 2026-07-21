@@ -3,6 +3,7 @@ import type { FloorPlan, MeasurementPoint, Project, StoredNetworkReading } from 
 import { getDistanceMeters } from '../modules/readings/distance'
 import { buildCsvFilename, exportReadingsToCsv } from '../modules/export/csvExporter'
 import { downloadTextFile } from '../lib/downloadFile'
+import { CloseIcon } from './icons'
 
 function formatDistance(reading: StoredNetworkReading): string {
   const { meters, estimated } = getDistanceMeters(reading)
@@ -85,11 +86,20 @@ export function PointPanel({
           </p>
         </div>
         <button type="button" onClick={onClose} aria-label="Fechar">
-          ×
+          <CloseIcon width={18} height={18} />
         </button>
       </header>
 
       <div className="point-panel__actions">
+        <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
+          Captura ao vivo
+        </button>
+        {!scanAvailable && (
+          <p className="point-panel__hint">
+            Captura ao vivo indisponível neste sistema — use importação de arquivo.
+          </p>
+        )}
+
         <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>
           Importar arquivo de scan
         </button>
@@ -100,15 +110,6 @@ export function PointPanel({
           hidden
           onChange={handleFileChange}
         />
-
-        <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
-          Captura ao vivo
-        </button>
-        {!scanAvailable && (
-          <p className="point-panel__hint">
-            Captura ao vivo indisponível neste sistema — use importação de arquivo.
-          </p>
-        )}
 
         <button type="button" disabled={readings.length === 0} onClick={handleExportCsv}>
           Exportar CSV
