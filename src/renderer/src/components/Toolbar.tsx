@@ -2,6 +2,7 @@ import type { ChangeEvent } from 'react'
 import type { FloorPlan } from '../types/domain'
 import { ALL_NETWORKS_KEY, type NetworkGroup, type Band } from '../modules/readings/network'
 import { AddLocationIcon, ResetIcon } from './icons'
+import { useTheme } from '../lib/useTheme'
 
 interface Props {
   floorPlan: FloorPlan
@@ -29,6 +30,9 @@ export function Toolbar({
   onResetPoints,
   hasPoints
 }: Props): JSX.Element {
+  const { theme, toggleTheme } = useTheme()
+  const isDarkTheme = theme === 'dark'
+
   function handleNetworkChange(event: ChangeEvent<HTMLSelectElement>): void {
     onSelectNetwork(event.target.value || null)
   }
@@ -43,9 +47,12 @@ export function Toolbar({
 
       <div className="toolbar__group">
         <label htmlFor="network-select">Rede</label>
+
         <select id="network-select" value={selectedNetworkKey ?? ''} onChange={handleNetworkChange}>
           <option value="">Selecione uma rede…</option>
+
           {networkGroups.length > 0 && <option value={ALL_NETWORKS_KEY}>Todas as redes</option>}
+
           {networkGroups.map((group) => (
             <option key={group.key} value={group.key}>
               {group.label}
@@ -54,6 +61,7 @@ export function Toolbar({
         </select>
 
         <label htmlFor="band-select">Banda</label>
+
         <select id="band-select" value={band} onChange={handleBandChange}>
           <option value="all">Todas</option>
           <option value="2.4GHz">2.4GHz</option>
@@ -76,6 +84,7 @@ export function Toolbar({
           <AddLocationIcon width={16} height={16} />{' '}
           {placingPoints ? 'Adicionar pontos: ligado' : 'Adicionar pontos'}
         </button>
+
         <button
           type="button"
           className="toolbar__button toolbar__button--danger"
@@ -83,6 +92,16 @@ export function Toolbar({
           disabled={!hasPoints}
         >
           <ResetIcon width={16} height={16} /> Resetar pontos
+        </button>
+
+        <button
+          type="button"
+          className="toolbar__button"
+          onClick={toggleTheme}
+          aria-pressed={isDarkTheme}
+          title={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
+        >
+          {isDarkTheme ? '☀️ Tema claro' : '🌙 Tema escuro'}
         </button>
       </div>
     </header>
