@@ -1,7 +1,7 @@
 import type { ChangeEvent } from 'react'
 import type { FloorPlan } from '../types/domain'
 import { ALL_NETWORKS_KEY, type NetworkGroup, type Band } from '../modules/readings/network'
-import { AddLocationIcon, ResetIcon } from './icons'
+import { AddLocationIcon, DarkModeIcon, LightModeIcon, ResetIcon } from './icons'
 import { useTheme } from '../lib/useTheme'
 
 interface Props {
@@ -99,9 +99,10 @@ export function Toolbar({
           className="toolbar__button"
           onClick={toggleTheme}
           aria-pressed={isDarkTheme}
+          aria-label={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
           title={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
         >
-          {isDarkTheme ? '☀️ Tema claro' : '🌙 Tema escuro'}
+          {isDarkTheme ? <LightModeIcon width={16} height={16} /> : <DarkModeIcon width={16} height={16} />}
         </button>
       </div>
     </header>
