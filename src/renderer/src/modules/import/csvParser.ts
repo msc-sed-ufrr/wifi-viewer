@@ -5,7 +5,7 @@ import type { NetworkReading } from '@shared/networkReading'
  * Contagem/ordem de colunas fora disso é rejeitada com erro explícito —
  * sem parsing heurístico.
  */
-const REFERENCE_HEADER = [
+export const REFERENCE_HEADER = [
   'Time Stamp',
   'SSID',
   'BSSID',
@@ -21,6 +21,16 @@ const REFERENCE_HEADER = [
   'Standard',
   'FastRoaming'
 ]
+
+/** Colunas extras que exportReadingsToCsv anexa depois de REFERENCE_HEADER (ver csvExporter.ts e consolidatedImport.ts). */
+export const POINT_LOCATION_HEADER = ['Floor Plan', 'Point Label', 'Point X', 'Point Y']
+
+/**
+ * Colunas finais, sempre emitidas no export mas opcionais na importação consolidada —
+ * arquivos exportados antes desta coluna existir continuam importáveis, só sem a
+ * reescala proporcional que ela habilita (ver consolidatedImport.ts, ADR-036).
+ */
+export const FLOOR_PLAN_DIMENSION_HEADER = ['Floor Plan Width', 'Floor Plan Height']
 
 export class CsvImportError extends Error {}
 
@@ -68,7 +78,8 @@ function parseDistanceMeters(raw: string): number | undefined {
   return Number.isFinite(value) ? value : undefined
 }
 
-function parseRow(cells: string[]): NetworkReading {
+/** Só usa as 13 primeiras posições — colunas extras (ver POINT_LOCATION_HEADER) ficam disponíveis pra quem chamar, mas são ignoradas aqui. */
+export function parseRow(cells: string[]): NetworkReading {
   const [
     timeStamp,
     ssidRaw,
@@ -107,9 +118,10 @@ export function parseWifiScanCsv(content: string): NetworkReading[] {
   }
 
   const header = lines[0].split('|').map((cell) => cell.trim())
+  /** Prefixo, não igualdade exata: exports enriquecidos (ver csvExporter.ts) anexam colunas extras depois das de referência. */
   const headerMatches =
-    header.length === REFERENCE_HEADER.length &&
-    header.every((cell, i) => cell === REFERENCE_HEADER[i])
+    header.length >= REFERENCE_HEADER.length &&
+    REFERENCE_HEADER.every((cell, i) => header[i] === cell)
   if (!headerMatches) {
     throw new CsvImportError(
       `Cabeçalho não corresponde ao formato de referência.\nEsperado: ${REFERENCE_HEADER.join('|')}\nEncontrado: ${lines[0]}`
@@ -120,9 +132,9 @@ export function parseWifiScanCsv(content: string): NetworkReading[] {
   for (let i = 1; i < lines.length; i++) {
     const lineNumber = i + 1
     const cells = lines[i].split('|')
-    if (cells.length !== REFERENCE_HEADER.length) {
+    if (cells.length < REFERENCE_HEADER.length) {
       throw new CsvImportError(
-        `Linha ${lineNumber}: esperado ${REFERENCE_HEADER.length} colunas, encontrado ${cells.length}.`
+        `Linha ${lineNumber}: esperado ao menos ${REFERENCE_HEADER.length} colunas, encontrado ${cells.length}.`
       )
     }
     try {

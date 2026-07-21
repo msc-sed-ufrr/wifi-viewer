@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { createFloorPlan, createProject } from '../modules/projects/api'
-import { loadImageDimensions } from '../lib/imageDimensions'
+import {
+  createBlankFloorPlanImage,
+  loadImageDimensions,
+  validateFloorPlanImageFile
+} from '../lib/imageDimensions'
 import type { FloorPlan, Project } from '../types/domain'
 
 interface Props {
@@ -16,21 +20,32 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault()
-    if (!file) {
-      setError('Selecione uma imagem da planta do prédio.')
-      return
+    if (file) {
+      const validationError = validateFloorPlanImageFile(file)
+      if (validationError) {
+        setError(validationError)
+        return
+      }
     }
     setSubmitting(true)
     setError(null)
     try {
-      const { width, height } = await loadImageDimensions(file)
       const project = await createProject(projectName.trim() || 'Meu levantamento')
+      const imageSource = file
+        ? { ...(await loadImageDimensions(file)), blob: file as Blob, calibration: undefined }
+        : await createBlankFloorPlanImage().then((blank) => ({
+            width: blank.width,
+            height: blank.height,
+            blob: blank.blob,
+            calibration: blank.calibration
+          }))
       const floorPlan = await createFloorPlan(
         project.id,
         floorPlanName.trim() || 'Planta 1',
-        file,
-        width,
-        height
+        imageSource.blob,
+        imageSource.width,
+        imageSource.height,
+        imageSource.calibration
       )
       onCreated(project, floorPlan)
     } catch (err) {
@@ -45,8 +60,8 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
       <form className="project-setup__form" onSubmit={handleSubmit}>
         <h1>Novo levantamento</h1>
         <p className="project-setup__hint">
-          Crie um levantamento e envie a imagem da planta do prédio para começar a marcar pontos de
-          medição.
+          Crie um levantamento. A imagem da planta é opcional — sem ela, nasce uma área em branco
+          (~40 m × 30 m) pra desenhar as arestas.
         </p>
 
         <label>
@@ -70,10 +85,10 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
         </label>
 
         <label>
-          Imagem da planta
+          Imagem da planta (opcional)
           <input
             type="file"
-            accept="image/*"
+            accept=".png,.jpg,.jpeg,.webp,image/*"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </label>

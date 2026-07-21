@@ -1,6 +1,9 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import type { MeasurementPoint, StoredNetworkReading } from '../types/domain'
+import type { FloorPlan, MeasurementPoint, Project, StoredNetworkReading } from '../types/domain'
 import { getDistanceMeters } from '../modules/readings/distance'
+import { buildCsvFilename, exportReadingsToCsv } from '../modules/export/csvExporter'
+import { downloadTextFile } from '../lib/downloadFile'
+import { CloseIcon } from './icons'
 
 function formatDistance(reading: StoredNetworkReading): string {
   const { meters, estimated } = getDistanceMeters(reading)
@@ -9,6 +12,8 @@ function formatDistance(reading: StoredNetworkReading): string {
 }
 
 interface Props {
+  project: Project
+  floorPlan: FloorPlan
   point: MeasurementPoint
   index: number
   readings: StoredNetworkReading[]
@@ -20,6 +25,8 @@ interface Props {
 }
 
 export function PointPanel({
+  project,
+  floorPlan,
   point,
   index,
   readings,
@@ -53,6 +60,22 @@ export function PointPanel({
     }
   }
 
+  function handleExportCsv(): void {
+    const label = `Ponto ${index + 1}`
+    const csv = exportReadingsToCsv([
+      {
+        floorPlanName: floorPlan.name,
+        floorPlanWidth: floorPlan.imageWidth,
+        floorPlanHeight: floorPlan.imageHeight,
+        point,
+        label,
+        readings
+      }
+    ])
+    const filename = buildCsvFilename(project.name, floorPlan.name, label)
+    downloadTextFile(filename, csv)
+  }
+
   return (
     <aside className="point-panel">
       <header className="point-panel__header">
@@ -63,11 +86,20 @@ export function PointPanel({
           </p>
         </div>
         <button type="button" onClick={onClose} aria-label="Fechar">
-          ×
+          <CloseIcon width={18} height={18} />
         </button>
       </header>
 
       <div className="point-panel__actions">
+        <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
+          Captura ao vivo
+        </button>
+        {!scanAvailable && (
+          <p className="point-panel__hint">
+            Captura ao vivo indisponível neste sistema — use importação de arquivo.
+          </p>
+        )}
+
         <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>
           Importar arquivo de scan
         </button>
@@ -79,14 +111,9 @@ export function PointPanel({
           onChange={handleFileChange}
         />
 
-        <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
-          Captura ao vivo
+        <button type="button" disabled={readings.length === 0} onClick={handleExportCsv}>
+          Exportar CSV
         </button>
-        {!scanAvailable && (
-          <p className="point-panel__hint">
-            Captura ao vivo indisponível neste sistema — use importação de arquivo.
-          </p>
-        )}
 
         <button type="button" className="point-panel__delete" disabled={busy} onClick={onDelete}>
           Remover ponto

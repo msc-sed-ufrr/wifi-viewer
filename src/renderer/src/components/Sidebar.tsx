@@ -1,6 +1,17 @@
-import { useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
 import type { FloorPlan, Project } from '../types/domain'
+import {
+  AddIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DeleteIcon,
+  DownloadIcon,
+  EditIcon,
+  ImageIcon,
+  MoreVertIcon,
+  UploadIcon
+} from './icons'
 
 interface Props {
   projects: Project[]
@@ -11,9 +22,16 @@ interface Props {
   onNewFloorPlan: (project: Project) => void
   onRenameProject: (project: Project, name: string) => void
   onRenameFloorPlan: (floorPlan: FloorPlan, name: string) => void
+  onExportProject: (project: Project) => void
+  onExportFloorPlan: (project: Project, floorPlan: FloorPlan) => void
+  onImportProject: (project: Project, file: File) => void
+  onImportFloorPlan: (floorPlan: FloorPlan, file: File) => void
+  onReplaceFloorPlanImage: (floorPlan: FloorPlan, file: File) => void
+  onDeleteFloorPlan: (floorPlan: FloorPlan) => void
 }
 
 type EditTarget = { kind: 'project'; id: string } | { kind: 'floor-plan'; id: string } | null
+type ImportTarget = { kind: 'project'; project: Project } | { kind: 'floor-plan'; floorPlan: FloorPlan } | null
 
 export function Sidebar({
   projects,
@@ -23,10 +41,55 @@ export function Sidebar({
   onNewProject,
   onNewFloorPlan,
   onRenameProject,
-  onRenameFloorPlan
+  onRenameFloorPlan,
+  onExportProject,
+  onExportFloorPlan,
+  onImportProject,
+  onImportFloorPlan,
+  onReplaceFloorPlanImage,
+  onDeleteFloorPlan
 }: Props): JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [importTarget, setImportTarget] = useState<ImportTarget>(null)
+  const [replaceImageTarget, setReplaceImageTarget] = useState<FloorPlan | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const replaceImageInputRef = useRef<HTMLInputElement>(null)
+
+  function handleImportFileChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file && importTarget) {
+      if (importTarget.kind === 'project') {
+        onImportProject(importTarget.project, file)
+      } else {
+        onImportFloorPlan(importTarget.floorPlan, file)
+      }
+    }
+    setImportTarget(null)
+  }
+
+  function handleReplaceImageFileChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file && replaceImageTarget) {
+      onReplaceFloorPlanImage(replaceImageTarget, file)
+    }
+    setReplaceImageTarget(null)
+  }
+
+  /** Fecha o menu "⋮" aberto ao clicar fora dele — não precisa fechar em Escape/foco, é só um atalho de conveniência. */
+  useEffect(() => {
+    if (!openMenuId) return
+    function handleClickOutside(event: globalThis.MouseEvent): void {
+      if (event.target instanceof Element && !event.target.closest('.sidebar__menu')) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openMenuId])
 
   function commitEdit(value: string, project: Project, floorPlan?: FloorPlan): void {
     setEditing(null)
@@ -58,7 +121,7 @@ export function Sidebar({
           onClick={() => setCollapsed(false)}
           title="Expandir levantamentos"
         >
-          »
+          <ChevronRightIcon width={16} height={16} />
         </button>
       </nav>
     )
@@ -66,11 +129,19 @@ export function Sidebar({
 
   return (
     <nav className="sidebar">
+      <input ref={importInputRef} type="file" accept=".csv,.txt" hidden onChange={handleImportFileChange} />
+      <input
+        ref={replaceImageInputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp"
+        hidden
+        onChange={handleReplaceImageFileChange}
+      />
       <div className="sidebar__header">
         <h2>Levantamentos</h2>
         <div className="sidebar__header-actions">
           <button type="button" className="sidebar__new-project" onClick={onNewProject} title="Novo levantamento">
-            +
+            <AddIcon width={16} height={16} />
           </button>
           <button
             type="button"
@@ -78,7 +149,7 @@ export function Sidebar({
             onClick={() => setCollapsed(true)}
             title="Recolher"
           >
-            «
+            <ChevronLeftIcon width={16} height={16} />
           </button>
         </div>
       </div>
@@ -104,14 +175,51 @@ export function Sidebar({
                     <div className="sidebar__project-name" title={project.name}>
                       {project.name}
                     </div>
-                    <button
-                      type="button"
-                      className="sidebar__rename-btn"
-                      onClick={() => setEditing({ kind: 'project', id: project.id })}
-                      title="Renomear levantamento"
-                    >
-                      ✎
-                    </button>
+                    <div className="sidebar__menu">
+                      <button
+                        type="button"
+                        className="sidebar__menu-btn"
+                        onClick={() => setOpenMenuId((id) => (id === project.id ? null : project.id))}
+                        title="Mais opções"
+                      >
+                        <MoreVertIcon width={16} height={16} />
+                      </button>
+                      {openMenuId === project.id && (
+                        <div className="sidebar__menu-dropdown">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditing({ kind: 'project', id: project.id })
+                              setOpenMenuId(null)
+                            }}
+                          >
+                            <EditIcon width={16} height={16} />
+                            Renomear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImportTarget({ kind: 'project', project })
+                              setOpenMenuId(null)
+                              importInputRef.current?.click()
+                            }}
+                          >
+                            <UploadIcon width={16} height={16} />
+                            Importar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onExportProject(project)
+                              setOpenMenuId(null)
+                            }}
+                          >
+                            <DownloadIcon width={16} height={16} />
+                            Exportar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -143,14 +251,73 @@ export function Sidebar({
                           >
                             {floorPlan.name}
                           </button>
-                          <button
-                            type="button"
-                            className="sidebar__rename-btn"
-                            onClick={() => setEditing({ kind: 'floor-plan', id: floorPlan.id })}
-                            title="Renomear planta"
-                          >
-                            ✎
-                          </button>
+                          <div className="sidebar__menu">
+                            <button
+                              type="button"
+                              className="sidebar__menu-btn"
+                              onClick={() => setOpenMenuId((id) => (id === floorPlan.id ? null : floorPlan.id))}
+                              title="Mais opções"
+                            >
+                              <MoreVertIcon width={16} height={16} />
+                            </button>
+                            {openMenuId === floorPlan.id && (
+                              <div className="sidebar__menu-dropdown">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditing({ kind: 'floor-plan', id: floorPlan.id })
+                                    setOpenMenuId(null)
+                                  }}
+                                >
+                                  <EditIcon width={16} height={16} />
+                                  Renomear
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplaceImageTarget(floorPlan)
+                                    setOpenMenuId(null)
+                                    replaceImageInputRef.current?.click()
+                                  }}
+                                >
+                                  <ImageIcon width={16} height={16} />
+                                  Substituir imagem
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setImportTarget({ kind: 'floor-plan', floorPlan })
+                                    setOpenMenuId(null)
+                                    importInputRef.current?.click()
+                                  }}
+                                >
+                                  <UploadIcon width={16} height={16} />
+                                  Importar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onExportFloorPlan(project, floorPlan)
+                                    setOpenMenuId(null)
+                                  }}
+                                >
+                                  <DownloadIcon width={16} height={16} />
+                                  Exportar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sidebar__menu-item--danger"
+                                  onClick={() => {
+                                    onDeleteFloorPlan(floorPlan)
+                                    setOpenMenuId(null)
+                                  }}
+                                >
+                                  <DeleteIcon width={16} height={16} />
+                                  Excluir
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </>
                       )}
                     </li>
@@ -162,7 +329,7 @@ export function Sidebar({
                     className="sidebar__add-floor-plan"
                     onClick={() => onNewFloorPlan(project)}
                   >
-                    + Nova planta
+                    <AddIcon width={14} height={14} /> Nova planta
                   </button>
                 </li>
               </ul>
