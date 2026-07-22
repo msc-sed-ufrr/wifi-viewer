@@ -110,6 +110,7 @@ body {
   body.theme-dark .sidebar__new-project:hover,
   body.theme-dark .sidebar__toggle:hover {
     background: #334155;
+<<<<<<< HEAD
   }
 
   /* Distribuição de canais (ChannelChart) */
@@ -142,4 +143,6 @@ body {
 
   body.theme-dark .channel-chart__body {
     scrollbar-color: #4b5563 #111827;
+=======
+>>>>>>> develop
   }

@@ -126,6 +126,24 @@ export function ResetIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
   )
 }
 
+/** Material Symbols `dark_mode` — alterna para o tema escuro. */
+export function DarkModeIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M480-120q-150 0-255-105T120-480q0-150 105-255t255-105q14 0 27.5 1t26.5 3q-30 27-48 64t-18 82q0 83 58.5 141.5T668-490q45 0 82-18t64-48q2 13 3 26.5t1 27.5q0 150-105 255T480-120Z" />
+    </Icon>
+  )
+}
+
+/** Material Symbols `light_mode` — alterna para o tema claro. */
+export function LightModeIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M480-360q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35Zm0 240-30-90h60l-30 90Zm-240-100-42-42 64-64 42 42-64 64Zm480 0-64-64 42-42 64 64-42 42ZM120-450v-60h90v60h-90Zm750 0h-90v-60h90v60ZM240-720l64 64-42 42-64-64 42-42Zm480 0 42 42-64 64-42-42 64-64ZM450-750v-90h60v90h-60Z" />
+    </Icon>
+  )
+}
+
 /** Pin "Location On" (Material Symbols `location_on`) — toggle de armar/desarmar criação de pontos. */
 export function AddLocationIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
   return (
