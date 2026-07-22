@@ -195,16 +195,6 @@ export function WallEditorPanel({
 
         <button
           type="button"
-          className={toolClass('draw')}
-          onClick={() => onSelectWallTool('draw')}
-          title="Desenhar linhas — clique a clique, encadeia segmentos"
-          aria-label="Desenhar linhas"
-          aria-pressed={wallEditing && wallTool === 'draw'}
-        >
-          <DiagonalLineIcon width={22} height={22} />
-        </button>
-        <button
-          type="button"
           className={toolClass('select')}
           onClick={() => onSelectWallTool('select')}
           title="Mover objetos — selecionar e arrastar vértices, paredes ou formas"
@@ -212,6 +202,16 @@ export function WallEditorPanel({
           aria-pressed={wallEditing && wallTool === 'select'}
         >
           <PanToolIcon width={22} height={22} />
+        </button>
+        <button
+          type="button"
+          className={toolClass('draw')}
+          onClick={() => onSelectWallTool('draw')}
+          title="Desenhar linhas — clique a clique, encadeia segmentos"
+          aria-label="Desenhar linhas"
+          aria-pressed={wallEditing && wallTool === 'draw'}
+        >
+          <DiagonalLineIcon width={22} height={22} />
         </button>
         <button
           type="button"
@@ -261,6 +261,24 @@ export function WallEditorPanel({
           <CalibrateIcon width={22} height={22} />
         </button>
 
+        {totalWallCount > 0 && <GlobalStrokeControl value={allWallsStrokeWidth} onChange={onChangeAllWallsStrokeWidth} />}
+
+        {wallEditing && (
+          <>
+            <div className="wall-editor-panel__toolbar-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className="wall-editor-panel__tool wall-editor-panel__tool--danger"
+              onClick={onDeleteSelection}
+              disabled={!hasSelection}
+              title="Excluir seleção"
+              aria-label="Excluir seleção"
+            >
+              <DeleteIcon width={22} height={22} />
+            </button>
+          </>
+        )}
+
         <div className="wall-editor-panel__toolbar-divider" aria-hidden="true" />
 
         <button
@@ -283,24 +301,6 @@ export function WallEditorPanel({
         >
           <RedoIcon width={22} height={22} />
         </button>
-
-        {wallEditing && (
-          <>
-            <div className="wall-editor-panel__toolbar-divider" aria-hidden="true" />
-            <button
-              type="button"
-              className="wall-editor-panel__tool wall-editor-panel__tool--danger"
-              onClick={onDeleteSelection}
-              disabled={!hasSelection}
-              title="Excluir seleção"
-              aria-label="Excluir seleção"
-            >
-              <DeleteIcon width={22} height={22} />
-            </button>
-          </>
-        )}
-
-        {totalWallCount > 0 && <GlobalStrokeControl value={allWallsStrokeWidth} onChange={onChangeAllWallsStrokeWidth} />}
       </div>
     </div>
   )
