@@ -1,0 +1,145 @@
+body {
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+  
+  body.theme-light {
+    color-scheme: light;
+  }
+  
+  body.theme-dark {
+    color-scheme: dark;
+    color: #e5e7eb;
+    background: #0f172a;
+  }
+  
+  body.theme-dark .app-shell,
+  body.theme-dark .workspace,
+  body.theme-dark .project-setup {
+    background: #0f172a;
+    color: #e5e7eb;
+  }
+  
+  body.theme-dark .toolbar,
+  body.theme-dark .modal,
+  body.theme-dark .project-setup__form,
+  body.theme-dark .point-panel,
+  body.theme-dark .channel-chart,
+  body.theme-dark .legend {
+    background: #111827;
+    color: #e5e7eb;
+    border-color: #374151;
+  }
+  
+  body.theme-dark input,
+  body.theme-dark select,
+  body.theme-dark textarea {
+    background: #1f2937;
+    color: #f9fafb;
+    border-color: #4b5563;
+  }
+  
+  body.theme-dark input::placeholder,
+  body.theme-dark textarea::placeholder {
+    color: #9ca3af;
+  }
+  
+  body.theme-dark button {
+    border-color: #4b5563;
+  }
+  
+  body.theme-dark .toolbar__button {
+    background: #1f2937;
+    color: #e5e7eb;
+  }
+  
+  body.theme-dark .toolbar__button:hover:not(:disabled) {
+    background: #374151;
+  }
+  
+  body.theme-dark .toolbar__button--active {
+    background: #1d4ed8;
+    color: #ffffff;
+  }
+  
+  body.theme-dark .workspace__notice {
+    background: #1e3a8a;
+    color: #dbeafe;
+    border-color: #2563eb;
+  }
+  
+  body.theme-dark .modal-overlay {
+    background: rgba(0, 0, 0, 0.72);
+  }
+  
+  body.theme-dark .modal__error,
+  body.theme-dark .project-setup__error {
+    color: #fca5a5;
+  }
+  
+  body.theme-dark .project-setup__hint,
+  body.theme-dark .app-loading {
+    color: #9ca3af;
+  }
+  
+  body.theme-dark .project-setup__form label {
+    color: #d1d5db;
+  }
+  
+  body.theme-dark .floor-plan-canvas,
+  body.theme-dark canvas {
+    background: #1f2937;
+  }
+  
+  body.theme-dark .sidebar {
+    background: #020617;
+    color: #e5e7eb;
+  }
+  
+  body.theme-dark .sidebar__header {
+    border-color: #334155;
+  }
+  
+  body.theme-dark .sidebar__new-project,
+  body.theme-dark .sidebar__toggle {
+    background: #1e293b;
+    color: #e5e7eb;
+  }
+  
+  body.theme-dark .sidebar__new-project:hover,
+  body.theme-dark .sidebar__toggle:hover {
+    background: #334155;
+  }
+
+  /* Distribuição de canais (ChannelChart) */
+  body.theme-dark .channel-chart__header:hover {
+    background: #1f2937;
+  }
+
+  body.theme-dark .channel-chart__chevron,
+  body.theme-dark .channel-chart__band-title,
+  body.theme-dark .channel-chart__axis-label {
+    color: #9ca3af;
+    fill: #9ca3af;
+  }
+
+  body.theme-dark .channel-chart__hint {
+    color: #6b7280;
+  }
+
+  body.theme-dark .channel-chart__gridline {
+    stroke: #374151;
+  }
+
+  body.theme-dark .channel-chart__axis {
+    stroke: #4b5563;
+  }
+
+  body.theme-dark .channel-chart__label {
+    stroke: #111827;
+  }
+
+  body.theme-dark .channel-chart__body {
+    scrollbar-color: #4b5563 #111827;
+  }
