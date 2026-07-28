@@ -11,4 +11,5 @@ dist-electron/
 .mcp.json
 .opencode
 .vscode
+.maestro
 CLAUDE.md

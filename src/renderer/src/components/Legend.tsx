@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { COLOR_STOP_DBMS, dbmToColor } from '../modules/heatmap/colorScale'
 
 /** Amostra os mesmos stops de `dbmToColor` (pior → melhor sinal) pra a barra nunca ficar fora de sincronia com a cor real do heatmap. */
@@ -17,6 +18,7 @@ function buildGradientCss(): string {
  * ampliar: a versão compacta padrão fica pequena demais pra ler os extremos.
  */
 export function Legend(): JSX.Element {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
   function toggle(): void {
@@ -30,7 +32,7 @@ export function Legend(): JSX.Element {
     }
   }
 
-  const hint = expanded ? 'Clique para reduzir' : 'Clique para ampliar'
+  const hint = expanded ? t('legend.collapse') : t('legend.expand')
   const sharedProps = {
     role: 'button' as const,
     tabIndex: 0,

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { createFloorPlan, createProject } from '../modules/projects/api'
 import {
   createBlankFloorPlanImage,
@@ -12,8 +13,9 @@ interface Props {
 }
 
 export function ProjectSetup({ onCreated }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [projectName, setProjectName] = useState('')
-  const [floorPlanName, setFloorPlanName] = useState('Planta 1')
+  const [floorPlanName, setFloorPlanName] = useState(t('common.defaultFloorPlanName'))
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -21,16 +23,16 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault()
     if (file) {
-      const validationError = validateFloorPlanImageFile(file)
-      if (validationError) {
-        setError(validationError)
+      const validation = validateFloorPlanImageFile(file)
+      if (!validation.ok) {
+        setError(t(validation.errorKey))
         return
       }
     }
     setSubmitting(true)
     setError(null)
     try {
-      const project = await createProject(projectName.trim() || 'Meu levantamento')
+      const project = await createProject(projectName.trim() || t('common.defaultProjectName'))
       const imageSource = file
         ? { ...(await loadImageDimensions(file)), blob: file as Blob, calibration: undefined }
         : await createBlankFloorPlanImage().then((blank) => ({
@@ -41,7 +43,7 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
           }))
       const floorPlan = await createFloorPlan(
         project.id,
-        floorPlanName.trim() || 'Planta 1',
+        floorPlanName.trim() || t('common.defaultFloorPlanName'),
         imageSource.blob,
         imageSource.width,
         imageSource.height,
@@ -49,7 +51,8 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
       )
       onCreated(project, floorPlan)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
     } finally {
       setSubmitting(false)
     }
@@ -58,34 +61,31 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
   return (
     <div className="project-setup">
       <form className="project-setup__form" onSubmit={handleSubmit}>
-        <h1>Novo levantamento</h1>
-        <p className="project-setup__hint">
-          Crie um levantamento. A imagem da planta é opcional — sem ela, nasce uma área em branco
-          (~40 m × 30 m) pra desenhar as arestas.
-        </p>
+        <h1>{t('projectSetup.title')}</h1>
+        <p className="project-setup__hint">{t('projectSetup.hint')}</p>
 
         <label>
-          Nome do levantamento
+          {t('dialog.newFloorPlan.projectNameLabel')}
           <input
             type="text"
             value={projectName}
             onChange={(event) => setProjectName(event.target.value)}
-            placeholder="Ex.: Prédio CIT"
+            placeholder={t('dialog.newFloorPlan.projectNamePlaceholder')}
           />
         </label>
 
         <label>
-          Nome da planta
+          {t('dialog.newFloorPlan.floorPlanNameLabel')}
           <input
             type="text"
             value={floorPlanName}
             onChange={(event) => setFloorPlanName(event.target.value)}
-            placeholder="Ex.: Térreo"
+            placeholder={t('dialog.newFloorPlan.floorPlanNamePlaceholder')}
           />
         </label>
 
         <label>
-          Imagem da planta (opcional)
+          {t('dialog.newFloorPlan.imageLabel')}
           <input
             type="file"
             accept=".png,.jpg,.jpeg,.webp,image/*"
@@ -96,7 +96,7 @@ export function ProjectSetup({ onCreated }: Props): JSX.Element {
         {error && <p className="project-setup__error">{error}</p>}
 
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Criando…' : 'Criar levantamento'}
+          {submitting ? t('common.creating') : t('projectSetup.submit')}
         </button>
       </form>
     </div>

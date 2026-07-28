@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { FloorPlan, MeasurementPoint } from '../types/domain'
 
 interface Props {
@@ -39,6 +40,7 @@ interface DragState {
  * conter exatamente o que vai virar a nova imagem da planta, nada de marcador desenhado nele.
  */
 export function ImageAlignEditor({ floorPlan, points, file, onCancel, onConfirm }: Props): JSX.Element {
+  const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dragStateRef = useRef<DragState | null>(null)
   const [image, setImage] = useState<HTMLImageElement | null>(null)
@@ -145,11 +147,8 @@ export function ImageAlignEditor({ floorPlan, points, file, onCancel, onConfirm 
   return (
     <div className="modal-overlay">
       <div className="modal modal--wide">
-        <h2>Ajustar imagem manualmente</h2>
-        <p className="modal__hint">
-          Arraste a imagem para posicioná-la e use +/− para ajustar o tamanho, até que ela coincida com os pontos
-          existentes (marcados abaixo). Os pontos não se movem.
-        </p>
+        <h2>{t('dialog.alignEditor.title')}</h2>
+        <p className="modal__hint">{t('dialog.alignEditor.hint')}</p>
 
         <div className="align-editor__canvas-wrap" style={{ width: DISPLAY_WIDTH_PX, height: displayHeight }}>
           <canvas
@@ -187,10 +186,10 @@ export function ImageAlignEditor({ floorPlan, points, file, onCancel, onConfirm 
 
         <div className="modal__actions">
           <button type="button" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
           <button type="button" onClick={handleConfirm}>
-            Confirmar
+            {t('common.confirm')}
           </button>
         </div>
       </div>

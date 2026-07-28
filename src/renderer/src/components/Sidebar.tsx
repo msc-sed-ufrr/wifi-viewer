@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { FloorPlan, Project } from '../types/domain'
 import {
   AddIcon,
@@ -12,6 +13,7 @@ import {
   MoreVertIcon,
   UploadIcon
 } from './icons'
+import { PreferencesMenu } from './PreferencesMenu'
 
 interface Props {
   projects: Project[]
@@ -49,6 +51,7 @@ export function Sidebar({
   onReplaceFloorPlanImage,
   onDeleteFloorPlan
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const [editing, setEditing] = useState<EditTarget>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -119,7 +122,7 @@ export function Sidebar({
           type="button"
           className="sidebar__toggle"
           onClick={() => setCollapsed(false)}
-          title="Expandir levantamentos"
+          title={t('sidebar.expandSurveysTitle')}
         >
           <ChevronRightIcon width={16} height={16} />
         </button>
@@ -138,16 +141,16 @@ export function Sidebar({
         onChange={handleReplaceImageFileChange}
       />
       <div className="sidebar__header">
-        <h2>Levantamentos</h2>
+        <h2>{t('sidebar.surveys')}</h2>
         <div className="sidebar__header-actions">
-          <button type="button" className="sidebar__new-project" onClick={onNewProject} title="Novo levantamento">
+          <button type="button" className="sidebar__new-project" onClick={onNewProject} title={t('sidebar.newSurveyTitle')}>
             <AddIcon width={16} height={16} />
           </button>
           <button
             type="button"
             className="sidebar__toggle"
             onClick={() => setCollapsed(true)}
-            title="Recolher"
+            title={t('sidebar.collapseTitle')}
           >
             <ChevronLeftIcon width={16} height={16} />
           </button>
@@ -180,7 +183,7 @@ export function Sidebar({
                         type="button"
                         className="sidebar__menu-btn"
                         onClick={() => setOpenMenuId((id) => (id === project.id ? null : project.id))}
-                        title="Mais opções"
+                        title={t('sidebar.moreOptionsTitle')}
                       >
                         <MoreVertIcon width={16} height={16} />
                       </button>
@@ -194,7 +197,7 @@ export function Sidebar({
                             }}
                           >
                             <EditIcon width={16} height={16} />
-                            Renomear
+                            {t('sidebar.rename')}
                           </button>
                           <button
                             type="button"
@@ -205,7 +208,7 @@ export function Sidebar({
                             }}
                           >
                             <UploadIcon width={16} height={16} />
-                            Importar
+                            {t('sidebar.import')}
                           </button>
                           <button
                             type="button"
@@ -215,7 +218,7 @@ export function Sidebar({
                             }}
                           >
                             <DownloadIcon width={16} height={16} />
-                            Exportar
+                            {t('sidebar.export')}
                           </button>
                         </div>
                       )}
@@ -256,7 +259,7 @@ export function Sidebar({
                               type="button"
                               className="sidebar__menu-btn"
                               onClick={() => setOpenMenuId((id) => (id === floorPlan.id ? null : floorPlan.id))}
-                              title="Mais opções"
+                              title={t('sidebar.moreOptionsTitle')}
                             >
                               <MoreVertIcon width={16} height={16} />
                             </button>
@@ -270,7 +273,7 @@ export function Sidebar({
                                   }}
                                 >
                                   <EditIcon width={16} height={16} />
-                                  Renomear
+                                  {t('sidebar.rename')}
                                 </button>
                                 <button
                                   type="button"
@@ -281,7 +284,7 @@ export function Sidebar({
                                   }}
                                 >
                                   <ImageIcon width={16} height={16} />
-                                  Substituir imagem
+                                  {t('sidebar.replaceImage')}
                                 </button>
                                 <button
                                   type="button"
@@ -292,7 +295,7 @@ export function Sidebar({
                                   }}
                                 >
                                   <UploadIcon width={16} height={16} />
-                                  Importar
+                                  {t('sidebar.import')}
                                 </button>
                                 <button
                                   type="button"
@@ -302,7 +305,7 @@ export function Sidebar({
                                   }}
                                 >
                                   <DownloadIcon width={16} height={16} />
-                                  Exportar
+                                  {t('sidebar.export')}
                                 </button>
                                 <button
                                   type="button"
@@ -313,7 +316,7 @@ export function Sidebar({
                                   }}
                                 >
                                   <DeleteIcon width={16} height={16} />
-                                  Excluir
+                                  {t('sidebar.deleteFloorPlan')}
                                 </button>
                               </div>
                             )}
@@ -329,7 +332,7 @@ export function Sidebar({
                     className="sidebar__add-floor-plan"
                     onClick={() => onNewFloorPlan(project)}
                   >
-                    <AddIcon width={14} height={14} /> Nova planta
+                    <AddIcon width={14} height={14} /> {t('sidebar.newFloorPlan')}
                   </button>
                 </li>
               </ul>
@@ -337,6 +340,10 @@ export function Sidebar({
           )
         })}
       </ul>
+
+      <div className="sidebar__footer">
+        <PreferencesMenu />
+      </div>
     </nav>
   )
 }
