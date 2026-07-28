@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   onConfirm: (realDistanceMeters: number) => void
@@ -12,6 +13,7 @@ interface Props {
  * app empacotado, mesmo funcionando normalmente num navegador comum.
  */
 export function CalibrationDialog({ onConfirm, onCancel }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -19,7 +21,7 @@ export function CalibrationDialog({ onConfirm, onCancel }: Props): JSX.Element {
     event.preventDefault()
     const meters = Number(value.replace(',', '.'))
     if (!Number.isFinite(meters) || meters <= 0) {
-      setError('Informe um número maior que zero.')
+      setError(t('error.calibrationPositiveNumber'))
       return
     }
     onConfirm(meters)
@@ -28,9 +30,9 @@ export function CalibrationDialog({ onConfirm, onCancel }: Props): JSX.Element {
   return (
     <div className="modal-overlay">
       <form className="modal" onSubmit={handleSubmit}>
-        <h2>Calibrar escala</h2>
+        <h2>{t('dialog.calibrate.title')}</h2>
         <label>
-          Distância real entre os dois pontos clicados (em metros)
+          {t('dialog.calibrate.distanceLabel')}
           <input
             autoFocus
             type="text"
@@ -45,9 +47,9 @@ export function CalibrationDialog({ onConfirm, onCancel }: Props): JSX.Element {
         {error && <p className="modal__error">{error}</p>}
         <div className="modal__actions">
           <button type="button" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
-          <button type="submit">Confirmar</button>
+          <button type="submit">{t('common.confirm')}</button>
         </div>
       </form>
     </div>

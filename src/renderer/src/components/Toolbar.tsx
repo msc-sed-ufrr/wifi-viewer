@@ -2,8 +2,7 @@ import type { ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FloorPlan } from '../types/domain'
 import { ALL_NETWORKS_KEY, type NetworkGroup, type Band } from '../modules/readings/network'
-import { AddLocationIcon, DarkModeIcon, LightModeIcon, ResetIcon } from './icons'
-import { useTheme } from '../lib/useTheme'
+import { AddLocationIcon, ResetIcon } from './icons'
 
 interface Props {
   floorPlan: FloorPlan
@@ -32,8 +31,6 @@ export function Toolbar({
   hasPoints
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
-  const { theme, toggleTheme } = useTheme()
-  const isDarkTheme = theme === 'dark'
 
   function handleNetworkChange(event: ChangeEvent<HTMLSelectElement>): void {
     onSelectNetwork(event.target.value || null)
@@ -111,21 +108,6 @@ export function Toolbar({
           disabled={!hasPoints}
         >
           <ResetIcon width={16} height={16} /> {t('toolbar.resetPoints')}
-        </button>
-
-        <button
-          type="button"
-          className="toolbar__button"
-          onClick={toggleTheme}
-          aria-pressed={isDarkTheme}
-          aria-label={isDarkTheme ? t('toolbar.lightTheme') : t('toolbar.darkTheme')}
-          title={isDarkTheme ? t('toolbar.lightTheme') : t('toolbar.darkTheme')}
-        >
-          {isDarkTheme ? (
-            <LightModeIcon width={16} height={16} />
-          ) : (
-            <DarkModeIcon width={16} height={16} />
-          )}
         </button>
       </div>
     </header>

@@ -31,7 +31,7 @@ export interface LocatedReadingGroup {
 export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
   const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0)
   if (lines.length === 0) {
-    throw new CsvImportError('Arquivo vazio.')
+    throw new CsvImportError('Arquivo vazio.', 'error.csvEmpty')
   }
 
   const header = lines[0].split('|').map((cell) => cell.trim())
@@ -44,7 +44,14 @@ export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
     CONSOLIDATED_HEADER_BASE.every((cell, i) => header[i] === cell)
   if (!hasDimensions && !hasNoDimensions) {
     throw new CsvImportError(
-      `Cabeçalho não tem as colunas de localização do ponto (${POINT_LOCATION_HEADER.join('/')}) — use um CSV exportado por esta ferramenta.\nEsperado: ${CONSOLIDATED_HEADER_BASE.join('|')} (opcionalmente seguido de ${FLOOR_PLAN_DIMENSION_HEADER.join('|')})\nEncontrado: ${lines[0]}`
+      `Cabeçalho não tem as colunas de localização do ponto (${POINT_LOCATION_HEADER.join('/')}) — use um CSV exportado por esta ferramenta.\nEsperado: ${CONSOLIDATED_HEADER_BASE.join('|')} (opcionalmente seguido de ${FLOOR_PLAN_DIMENSION_HEADER.join('|')})\nEncontrado: ${lines[0]}`,
+      'error.csvConsolidatedHeader',
+      {
+        cols: POINT_LOCATION_HEADER.join('/'),
+        expected: CONSOLIDATED_HEADER_BASE.join('|'),
+        extra: FLOOR_PLAN_DIMENSION_HEADER.join('|'),
+        found: lines[0]
+      }
     )
   }
   const expectedColumns = hasDimensions ? CONSOLIDATED_HEADER_WITH_DIMS.length : CONSOLIDATED_HEADER_BASE.length
@@ -54,14 +61,22 @@ export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
     const lineNumber = i + 1
     const cells = lines[i].split('|')
     if (cells.length !== expectedColumns) {
-      throw new CsvImportError(`Linha ${lineNumber}: esperado ${expectedColumns} colunas, encontrado ${cells.length}.`)
+      throw new CsvImportError(
+        `Linha ${lineNumber}: esperado ${expectedColumns} colunas, encontrado ${cells.length}.`,
+        'error.csvRowColumns',
+        { line: lineNumber, expected: expectedColumns, found: cells.length }
+      )
     }
 
     const [floorPlanName, label, xRaw, yRaw, widthRaw, heightRaw] = cells.slice(REFERENCE_HEADER.length)
     const x = Number(xRaw)
     const y = Number(yRaw)
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      throw new CsvImportError(`Linha ${lineNumber}: posição do ponto inválida (x="${xRaw}", y="${yRaw}").`)
+      throw new CsvImportError(
+        `Linha ${lineNumber}: posição do ponto inválida (x="${xRaw}", y="${yRaw}").`,
+        'error.csvInvalidPointPosition',
+        { line: lineNumber, x: xRaw, y: yRaw }
+      )
     }
 
     let floorPlanWidth: number | undefined
@@ -71,7 +86,9 @@ export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
       floorPlanHeight = Number(heightRaw)
       if (!Number.isFinite(floorPlanWidth) || !Number.isFinite(floorPlanHeight)) {
         throw new CsvImportError(
-          `Linha ${lineNumber}: dimensão da planta de origem inválida (width="${widthRaw}", height="${heightRaw}").`
+          `Linha ${lineNumber}: dimensão da planta de origem inválida (width="${widthRaw}", height="${heightRaw}").`,
+          'error.csvInvalidDimensions',
+          { line: lineNumber, width: widthRaw, height: heightRaw }
         )
       }
     }
@@ -80,8 +97,14 @@ export function parseConsolidatedCsv(content: string): LocatedReadingGroup[] {
     try {
       reading = parseRow(cells)
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new CsvImportError(`Linha ${lineNumber}: ${message}`)
+      if (error instanceof CsvImportError) {
+        throw new CsvImportError(
+          `Linha ${lineNumber}: ${error.message}`,
+          'error.csvRowError',
+          { line: lineNumber, reason: error.message }
+        )
+      }
+      throw error
     }
 
     const key = JSON.stringify([floorPlanName, x, y])

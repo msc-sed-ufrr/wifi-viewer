@@ -1,4 +1,5 @@
 import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { buildChannelAxis, channelColor, type ChannelUsageEntry } from '../modules/channels/channelUsage'
 
 interface Props {
@@ -132,6 +133,7 @@ function layoutBand(entries: ColoredEntry[], axis: number[]): LayoutEntry[] {
 }
 
 function BandChart({ band, entries }: { band: '2.4GHz' | '5GHz'; entries: ColoredEntry[] }): JSX.Element {
+  const { t } = useTranslation()
   const [hoveredBssid, setHoveredBssid] = useState<string | null>(null)
   const axis = buildChannelAxis(band, entries)
   const stepPx = PLOT_WIDTH / Math.max(1, axis.length - 1)
@@ -160,7 +162,7 @@ function BandChart({ band, entries }: { band: '2.4GHz' | '5GHz'; entries: Colore
         className="channel-chart__svg"
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
         role="img"
-        aria-label={`Distribuição de redes nos canais ${band}`}
+        aria-label={t('channelChart.ariaLabel', { band })}
       >
         {Y_GRIDLINES.map((dbm) => (
           <g key={dbm}>
@@ -219,7 +221,12 @@ function BandChart({ band, entries }: { band: '2.4GHz' | '5GHz'; entries: Colore
                 strokeLinejoin="round"
               >
                 <title>
-                  {entry.label} · canal {entry.channel} · {entry.widthMhz}MHz · {entry.dbm}dBm
+                  {t('channelChart.pointTitle', {
+                    label: entry.label,
+                    channel: entry.channel,
+                    widthMhz: entry.widthMhz,
+                    dbm: entry.dbm
+                  })}
                 </title>
               </polygon>
               {(entry.showLabel || isHovered) && (
@@ -248,6 +255,7 @@ function BandChart({ band, entries }: { band: '2.4GHz' | '5GHz'; entries: Colore
  * disponível na visão "todas as redes" (ver Workspace, PRD UC-005).
  */
 export function ChannelChart({ entries }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
   function toggle(): void {
@@ -279,9 +287,11 @@ export function ChannelChart({ entries }: Props): JSX.Element {
         onKeyDown={handleKeyDown}
       >
         <span className={`channel-chart__chevron${expanded ? ' channel-chart__chevron--expanded' : ''}`}>▸</span>
-        Distribuição de canais
+        {t('channelChart.title')}
         <span className="channel-chart__hint">
-          ({entries.length} redes{expanded ? ' · passe o mouse sobre uma forma para ver detalhes' : ''})
+          {expanded
+            ? t('channelChart.hintExpanded', { count: entries.length })
+            : t('channelChart.hint', { count: entries.length })}
         </span>
       </div>
       {expanded && (

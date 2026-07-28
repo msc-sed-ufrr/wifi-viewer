@@ -1,17 +1,246 @@
 {
-    "toolbar": {
-      "network": "Rede",
-      "selectNetwork": "Selecione uma rede…",
-      "allNetworks": "Todas as redes",
-      "band": "Banda",
-      "allBands": "Todas",
-      "language": "Idioma",
-      "addPoints": "Adicionar pontos",
-      "addPointsOn": "Adicionar pontos: ligado",
-      "resetPoints": "Resetar pontos",
-      "lightTheme": "Tema claro",
-      "darkTheme": "Tema escuro",
-      "enablePointCreation": "Armar criação de pontos — cliques vazios na planta passam a criar medições",
-      "disablePointCreation": "Desarmar criação de pontos — cliques vazios na planta não criam mais medições"
+  "toolbar": {
+    "network": "Rede",
+    "selectNetwork": "Selecione uma rede…",
+    "allNetworks": "Todas as redes",
+    "band": "Banda",
+    "allBands": "Todas",
+    "language": "Idioma",
+    "addPoints": "Adicionar pontos",
+    "addPointsOn": "Adicionar pontos: ligado",
+    "resetPoints": "Resetar pontos",
+    "lightTheme": "Tema claro",
+    "darkTheme": "Tema escuro",
+    "theme": "Tema",
+    "preferences": "Preferências",
+    "enablePointCreation": "Armar criação de pontos — cliques vazios na planta passam a criar medições",
+    "disablePointCreation": "Desarmar criação de pontos — cliques vazios na planta não criam mais medições"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "delete": "Excluir",
+    "remove": "Remover",
+    "move": "Mover",
+    "create": "Criar",
+    "creating": "Criando…",
+    "loading": "Carregando…",
+    "cannotBeUndone": "Essa ação não pode ser desfeita.",
+    "closeAriaLabel": "Fechar",
+    "closeErrorAriaLabel": "Fechar erro",
+    "defaultProjectName": "Meu levantamento",
+    "defaultFloorPlanName": "Planta 1",
+    "pointN": "Ponto {{n}}"
+  },
+  "sidebar": {
+    "surveys": "Levantamentos",
+    "newSurveyTitle": "Novo levantamento",
+    "collapseTitle": "Recolher",
+    "expandSurveysTitle": "Expandir levantamentos",
+    "moreOptionsTitle": "Mais opções",
+    "rename": "Renomear",
+    "import": "Importar",
+    "export": "Exportar",
+    "replaceImage": "Substituir imagem",
+    "deleteFloorPlan": "Excluir planta",
+    "newFloorPlan": "Nova planta"
+  },
+  "emptyState": {
+    "noFloorPlans": "Este levantamento ainda não tem plantas.",
+    "newFloorPlan": "+ Nova planta"
+  },
+  "dialog": {
+    "deleteFloorPlan": {
+      "title": "Excluir planta",
+      "body_zero": "Excluir \"{{name}}\"? {{cannot}}",
+      "body_one": "Excluir \"{{name}}\"? Isso também removerá seu 1 ponto de medição (com suas leituras). {{cannot}}",
+      "body_other": "Excluir \"{{name}}\"? Isso também removerá seus {{count}} pontos de medição (com suas leituras). {{cannot}}"
+    },
+    "replaceImage": {
+      "title": "Substituir imagem",
+      "bodyDimChanged": "Substituir a imagem de \"{{name}}\"? A nova imagem tem dimensões diferentes ({{oldW}}×{{oldH}} → {{newW}}×{{newH}}). {{cannot}}",
+      "repositionHint_one": "\"Reposicionar automaticamente\" move o 1 ponto existente proporcionalmente para a nova imagem; \"Ajustar imagem manualmente\" mantém os pontos no lugar e permite posicionar a nova imagem sob eles.",
+      "repositionHint_other": "\"Reposicionar automaticamente\" move os {{count}} pontos existentes proporcionalmente para a nova imagem; \"Ajustar imagem manualmente\" mantém os pontos no lugar e permite posicionar a nova imagem sob eles.",
+      "calibrationHint": "\"Reposicionar automaticamente\" remove a calibração de escala (recalibre depois); o ajuste manual preserva a calibração atual.",
+      "adjustManually": "Ajustar imagem manualmente",
+      "repositionAuto": "Reposicionar automaticamente"
+    },
+    "alignEditor": {
+      "title": "Ajustar imagem manualmente",
+      "hint": "Arraste a imagem para posicioná-la e use +/− para ajustar o tamanho, até que ela coincida com os pontos existentes (marcados abaixo). Os pontos não se movem."
+    },
+    "resetPoints": {
+      "title": "Resetar pontos",
+      "body_one": "Remover o 1 ponto desta planta e suas leituras? {{cannot}}",
+      "body_other": "Remover todos os {{count}} pontos desta planta e suas leituras? {{cannot}}"
+    },
+    "bulkMove": {
+      "title": "Mover todos os pontos",
+      "body_one": "Mover o 1 ponto desta planta{{distance}}? {{cannot}}",
+      "body_other": "Mover os {{count}} pontos desta planta{{distance}}? {{cannot}}"
+    },
+    "deleteVertex": {
+      "title": "Excluir vértice",
+      "body_one": "Este vértice é usado por 1 parede. Excluí-lo também removerá essa parede. {{cannot}}",
+      "body_other": "Este vértice é usado por {{count}} paredes. Excluí-lo também removerá essas paredes. {{cannot}}"
+    },
+    "calibrate": {
+      "title": "Calibrar escala",
+      "distanceLabel": "Distância real entre os dois pontos clicados (em metros)"
+    },
+    "newFloorPlan": {
+      "title": "Novo levantamento",
+      "titleForProject": "Nova planta em \"{{name}}\"",
+      "projectNameLabel": "Nome do levantamento",
+      "projectNamePlaceholder": "Ex.: Prédio CIT",
+      "floorPlanNameLabel": "Nome da planta",
+      "floorPlanNamePlaceholder": "Ex.: Térreo",
+      "imageLabel": "Imagem da planta (opcional)",
+      "blankImageHint": "Sem imagem, a planta nasce em branco (~40 m × 30 m, pré-calibrada) pra desenhar as arestas do terreno.",
+      "previewAlt": "Pré-visualização da planta baixa",
+      "removeImage": "Remover imagem",
+      "csvLabel": "Leituras (CSV, opcional)",
+      "csvHint": "Recria os pontos de um CSV consolidado (exportado por planta ou levantamento) — as posições só fazem sentido se a imagem acima for a mesma do export original (exige imagem).",
+      "csvSummary_one": "{{file}}: 1 ponto encontrado ({{count}} leitura)",
+      "csvSummary_other": "{{file}}: {{count}} pontos encontrados ({{readings}} leituras)",
+      "rescaledHint_one": "1 ponto será reposicionado proporcionalmente — a planta de origem tem dimensões diferentes da imagem escolhida acima.",
+      "rescaledHint_other": "{{count}} pontos serão reposicionados proporcionalmente — a planta de origem tem dimensões diferentes da imagem escolhida acima.",
+      "clampedHint_one": "1 ponto fica fora dos limites da imagem escolhida e nascerá preso à borda — visível, mas na posição errada. Troque a imagem acima pela original do export (ou uma com as mesmas dimensões) pra corrigir, ou continue e ajuste as posições manualmente depois.",
+      "clampedHint_other": "{{count}} pontos ficam fora dos limites da imagem escolhida e nascerão presos à borda — visível, mas na posição errada. Troque a imagem acima pela original do export (ou uma com as mesmas dimensões) pra corrigir, ou continue e ajuste as posições manualmente depois.",
+      "removeCsv": "Remover CSV"
+    },
+    "wallMeasure": {
+      "title": "Aresta",
+      "sizeLabelCalibrate": "Size — comprimento real desta aresta (m), define a escala da planta",
+      "sizeLabelM": "Size — comprimento (m)",
+      "sizeLabelPx": "Size — comprimento (px da imagem)",
+      "thicknessLabelGroup_one": "Thickness — espessura (px), aplicada à 1 aresta do grupo",
+      "thicknessLabelGroup_other": "Thickness — espessura (px), aplicada às {{count}} arestas do grupo",
+      "thicknessLabelSingle": "Thickness — espessura do traço (px)",
+      "sizePlaceholder": "ex.: 4.5"
     }
+  },
+  "notice": {
+    "scaleCalibrationRemoved": "Calibração de escala removida — as dimensões da planta mudaram, recalibre se necessário.",
+    "placingPointsOn": "Modo adicionar pontos ligado — clique na planta para criar um ponto de medição. Clique de novo em \"Adicionar pontos\" para desarmar.",
+    "rulerArmed": "Régua armada — clique numa aresta para Size/Thickness, ou dois pontos na planta para calibrar a escala.",
+    "secondCalibrationPoint": "Clique no segundo ponto de referência.",
+    "heatmapTooFewPoints_one": "Apenas 1 ponto com esta rede — adicione pelo menos {{min}} pontos para um heatmap mais confiável.",
+    "heatmapTooFewPoints_other": "Apenas {{count}} pontos com esta rede — adicione pelo menos {{min}} pontos para um heatmap mais confiável."
+  },
+  "importNotice": {
+    "rescaled_one": "1 ponto reposicionado proporcionalmente (dimensões da planta de origem diferem da atual).",
+    "rescaled_other": "{{count}} pontos reposicionados proporcionalmente (dimensões da planta de origem diferem da atual).",
+    "clamped_one": "1 ponto ficou fora dos limites da planta e foi preso à borda (sem dimensões de origem no CSV para reescalar corretamente).",
+    "clamped_other": "{{count}} pontos ficaram fora dos limites da planta e foram presos à borda (sem dimensões de origem no CSV para reescalar corretamente).",
+    "unmatchedFloorPlans": "Plantas não encontradas neste levantamento (linhas ignoradas): {{names}}"
+  },
+  "error": {
+    "calibrationPositiveNumber": "Informe um número maior que zero.",
+    "csvRequiresImage": "Importe uma imagem da planta para carregar o CSV de leituras (as posições dependem dela).",
+    "wallSizeMeters": "Informe um comprimento maior que zero (metros), ou deixe em branco para só mudar a espessura.",
+    "wallSizePx": "Informe um comprimento maior que zero (px), ou deixe em branco para só mudar a espessura.",
+    "wallThicknessRange": "Espessura deve ser um inteiro entre 1 e 30.",
+    "floorPlanImageInvalid": "Arquivo de imagem inválido.",
+    "floorPlanImageRead": "Não foi possível ler a imagem.",
+    "csvEmpty": "Arquivo vazio.",
+    "csvHeaderMismatch": "Cabeçalho não corresponde ao formato de referência.\nEsperado: {{expected}}\nEncontrado: {{found}}",
+    "csvRowColumns": "Linha {{line}}: esperado ao menos {{expected}} colunas, encontrado {{found}}.",
+    "csvRowError": "Linha {{line}}: {{reason}}",
+    "csvConsolidatedHeader": "Cabeçalho não tem as colunas de localização do ponto ({{cols}}) — use um CSV exportado por esta ferramenta.\nEsperado: {{expected}} (opcionalmente seguido de {{extra}})\nEncontrado: {{found}}",
+    "csvInvalidPointPosition": "Linha {{line}}: posição do ponto inválida (x=\"{{x}}\", y=\"{{y}}\").",
+    "csvInvalidDimensions": "Linha {{line}}: dimensão da planta de origem inválida (width=\"{{width}}\", height=\"{{height}}\").",
+    "csvTimestampFormat": "Timestamp em formato inesperado: \"{{value}}\"",
+    "csvStrengthInvalid": "Força de sinal inválida: \"{{value}}\"",
+    "csvChannelInvalid": "Canal inválido: \"{{value}}\"",
+    "liveCaptureUnavailable": "Captura ao vivo indisponível: preload não carregado.",
+    "blankFloorPlanCreate": "Não foi possível criar a planta em branco."
+  },
+  "pointPanel": {
+    "pointTitle": "Ponto {{n}}",
+    "liveCapture": "Captura ao vivo",
+    "liveCaptureUnavailable": "Captura ao vivo indisponível neste sistema — use importação de arquivo.",
+    "importScanFile": "Importar arquivo de scan",
+    "exportCsv": "Exportar CSV",
+    "deletePoint": "Remover ponto",
+    "readingsTitle_one": "Leituras (1)",
+    "readingsTitle_other": "Leituras ({{count}})",
+    "noReadings": "Nenhuma leitura ainda neste ponto.",
+    "hiddenSsid": "(oculto)",
+    "channelHeader": "Canal",
+    "distanceHeader": "Distância",
+    "securityHeader": "Segurança"
+  },
+  "reading": {
+    "distanceEstimated": "~{{distance}} m (estimado)",
+    "distance": "{{distance}} m"
+  },
+  "projectSetup": {
+    "title": "Novo levantamento",
+    "hint": "Crie um levantamento. A imagem da planta é opcional — sem ela, nasce uma área em branco (~40 m × 30 m) pra desenhar as arestas.",
+    "submit": "Criar levantamento"
+  },
+  "wallEditor": {
+    "toolbarAriaLabel": "Camadas e ferramentas de paredes",
+    "layersTitle": "Camadas — visibilidade de heatmap, medições, imagem e objetos",
+    "layersAriaLabel": "Camadas",
+    "layersDropdownAriaLabel": "Visibilidade das camadas",
+    "layerHeatmap": "Heatmap",
+    "layerMeasurements": "Medições",
+    "layerImage": "Imagem",
+    "layerObjects": "Objetos",
+    "moveToolTitle": "Mover objetos — selecionar e arrastar vértices, paredes ou formas",
+    "moveToolAriaLabel": "Mover objetos",
+    "drawLineToolTitle": "Desenhar linhas — clique a clique, encadeia segmentos",
+    "drawLineToolAriaLabel": "Desenhar linhas",
+    "rectToolTitle": "Retângulo — arrastar canto a canto; Shift = quadrado",
+    "rectToolAriaLabel": "Retângulo",
+    "circleToolTitle": "Círculo — arrastar do centro até a borda",
+    "circleToolAriaLabel": "Círculo",
+    "arcToolTitle": "Arco — 3 cliques: início, fim e curvatura",
+    "arcToolAriaLabel": "Arco",
+    "rulerTitle": "Régua — clique em aresta: Size/Thickness; clique na planta: calibrar escala",
+    "rulerCancelTitle": "Cancelar régua — clique em aresta mede Size/Thickness; clique na planta calibra escala",
+    "rulerAriaLabel": "Régua / calibrar escala",
+    "rulerCancelAriaLabel": "Cancelar régua",
+    "deleteSelectionTitle": "Excluir seleção",
+    "deleteSelectionAriaLabel": "Excluir seleção",
+    "undoTitle": "Desfazer ({{shortcut}})",
+    "undoAriaLabel": "Desfazer ({{shortcut}})",
+    "redoTitle": "Refazer ({{shortcut}})",
+    "redoAriaLabel": "Refazer ({{shortcut}})",
+    "strokeWidthTitle": "Espessura de todas as arestas (px)",
+    "strokeWidthSrOnly": "Espessura de todas as arestas",
+    "decreaseStrokeAriaLabel": "Diminuir espessura",
+    "decreaseTitle": "Diminuir",
+    "strokeInputAriaLabel": "Espessura do traço de todas as paredes",
+    "increaseStrokeAriaLabel": "Aumentar espessura",
+    "increaseTitle": "Aumentar"
+  },
+  "legend": {
+    "expand": "Clique para ampliar",
+    "collapse": "Clique para reduzir"
+  },
+  "channelChart": {
+    "title": "Distribuição de canais",
+    "ariaLabel": "Distribuição de redes nos canais {{band}}",
+    "hint_one": "(1 rede)",
+    "hint_other": "({{count}} redes)",
+    "hintExpanded_one": "(1 rede — passe o mouse sobre uma forma para ver detalhes)",
+    "hintExpanded_other": "({{count}} redes — passe o mouse sobre uma forma para ver detalhes)",
+    "pointTitle": "{{label}} · canal {{channel}} · {{widthMhz}} MHz · {{dbm}} dBm"
+  },
+  "canvas": {
+    "zoomInTitle": "Aumentar zoom",
+    "zoomOutTitle": "Diminuir zoom",
+    "zoomResetTitle": "Restaurar 100%"
+  },
+  "tooltip": {
+    "pointTitle": "Ponto {{n}}",
+    "rssi": "RSSI: {{dbm}} dBm",
+    "noise": "Noise: {{dbm}} dBm",
+    "snr": "SNR: {{db}} dB",
+    "channel": "Canal: {{channel}}",
+    "widthMhz": "Largura: {{mhz}} MHz"
   }
+}
