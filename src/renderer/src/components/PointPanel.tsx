@@ -1,14 +1,18 @@
 import { useRef, useState, type ChangeEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { FloorPlan, MeasurementPoint, Project, StoredNetworkReading } from '../types/domain'
 import { getDistanceMeters } from '../modules/readings/distance'
 import { buildCsvFilename, exportReadingsToCsv } from '../modules/export/csvExporter'
 import { downloadTextFile } from '../lib/downloadFile'
 import { CloseIcon } from './icons'
+import type { TFunction } from 'i18next'
 
-function formatDistance(reading: StoredNetworkReading): string {
+function formatDistance(t: TFunction, reading: StoredNetworkReading): string {
   const { meters, estimated } = getDistanceMeters(reading)
   const rounded = meters < 10 ? meters.toFixed(1) : Math.round(meters).toString()
-  return estimated ? `~${rounded}m (estimado)` : `${rounded}m`
+  return estimated
+    ? t('reading.distanceEstimated', { distance: rounded })
+    : t('reading.distance', { distance: rounded })
 }
 
 interface Props {
@@ -36,6 +40,7 @@ export function PointPanel({
   onDelete,
   onClose
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
 
@@ -61,7 +66,7 @@ export function PointPanel({
   }
 
   function handleExportCsv(): void {
-    const label = `Ponto ${index + 1}`
+    const label = t('common.pointN', { n: index + 1 })
     const csv = exportReadingsToCsv([
       {
         floorPlanName: floorPlan.name,
@@ -80,28 +85,26 @@ export function PointPanel({
     <aside className="point-panel">
       <header className="point-panel__header">
         <div>
-          <h2>Ponto {index + 1}</h2>
+          <h2>{t('pointPanel.pointTitle', { n: index + 1 })}</h2>
           <p className="point-panel__coords">
             x={Math.round(point.x)}, y={Math.round(point.y)}
           </p>
         </div>
-        <button type="button" onClick={onClose} aria-label="Fechar">
+        <button type="button" onClick={onClose} aria-label={t('common.closeAriaLabel')}>
           <CloseIcon width={18} height={18} />
         </button>
       </header>
 
       <div className="point-panel__actions">
         <button type="button" disabled={busy || !scanAvailable} onClick={handleLiveCapture}>
-          Captura ao vivo
+          {t('pointPanel.liveCapture')}
         </button>
         {!scanAvailable && (
-          <p className="point-panel__hint">
-            Captura ao vivo indisponível neste sistema — use importação de arquivo.
-          </p>
+          <p className="point-panel__hint">{t('pointPanel.liveCaptureUnavailable')}</p>
         )}
 
         <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>
-          Importar arquivo de scan
+          {t('pointPanel.importScanFile')}
         </button>
         <input
           ref={fileInputRef}
@@ -112,18 +115,18 @@ export function PointPanel({
         />
 
         <button type="button" disabled={readings.length === 0} onClick={handleExportCsv}>
-          Exportar CSV
+          {t('pointPanel.exportCsv')}
         </button>
 
         <button type="button" className="point-panel__delete" disabled={busy} onClick={onDelete}>
-          Remover ponto
+          {t('pointPanel.deletePoint')}
         </button>
       </div>
 
       <div className="point-panel__readings">
-        <h3>Leituras ({readings.length})</h3>
+        <h3>{t('pointPanel.readingsTitle', { count: readings.length })}</h3>
         {readings.length === 0 ? (
-          <p className="point-panel__hint">Nenhuma leitura ainda neste ponto.</p>
+          <p className="point-panel__hint">{t('pointPanel.noReadings')}</p>
         ) : (
           <table>
             <thead>
@@ -131,19 +134,21 @@ export function PointPanel({
                 <th>SSID</th>
                 <th>BSSID</th>
                 <th>dBm</th>
-                <th>Canal</th>
-                <th>Distância</th>
-                <th>Segurança</th>
+                <th>{t('pointPanel.channelHeader')}</th>
+                <th>{t('pointPanel.distanceHeader')}</th>
+                <th>{t('pointPanel.securityHeader')}</th>
               </tr>
             </thead>
             <tbody>
               {readings.map((reading) => (
                 <tr key={reading.id}>
-                  <td title={reading.ssid ?? '(oculto)'}>{reading.ssid ?? '(oculto)'}</td>
+                  <td title={reading.ssid ?? t('pointPanel.hiddenSsid')}>
+                    {reading.ssid ?? t('pointPanel.hiddenSsid')}
+                  </td>
                   <td title={reading.bssid}>{reading.bssid}</td>
                   <td>{reading.signalDbm}</td>
                   <td>{reading.primaryChannel}</td>
-                  <td title={formatDistance(reading)}>{formatDistance(reading)}</td>
+                  <td title={formatDistance(t, reading)}>{formatDistance(t, reading)}</td>
                   <td title={reading.security}>{reading.security || '—'}</td>
                 </tr>
               ))}

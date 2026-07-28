@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   CalibrateIcon,
   CircleIcon,
@@ -81,6 +82,7 @@ export function WallEditorPanel({
   onUndo,
   onRedo
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [layersOpen, setLayersOpen] = useState(false)
   const layersButtonRef = useRef<HTMLButtonElement>(null)
   const [layersMenuStyle, setLayersMenuStyle] = useState<{ top: number; right: number } | null>(null)
@@ -142,15 +144,15 @@ export function WallEditorPanel({
     <div className="wall-editor-panel">
       {/* Toolbar vertical só com ícones (barra lateral de app de imagem/vetor):
           label some do botão e fica no tooltip nativo (`title`), ícone grande e legível. */}
-      <div className="wall-editor-panel__toolbar" role="toolbar" aria-label="Camadas e ferramentas de paredes">
+      <div className="wall-editor-panel__toolbar" role="toolbar" aria-label={t('wallEditor.toolbarAriaLabel')}>
         <div className="wall-editor-panel__layers">
           <button
             ref={layersButtonRef}
             type="button"
             className={layersOpen ? 'wall-editor-panel__tool wall-editor-panel__tool--active' : 'wall-editor-panel__tool'}
             onClick={() => setLayersOpen((open) => !open)}
-            title="Camadas — visibilidade de heatmap, medições, imagem e objetos"
-            aria-label="Camadas"
+            title={t('wallEditor.layersTitle')}
+            aria-label={t('wallEditor.layersAriaLabel')}
             aria-expanded={layersOpen}
             aria-haspopup="true"
           >
@@ -160,7 +162,7 @@ export function WallEditorPanel({
             <div
               className="wall-editor-panel__layers-dropdown"
               role="menu"
-              aria-label="Visibilidade das camadas"
+              aria-label={t('wallEditor.layersDropdownAriaLabel')}
               style={layersMenuStyle}
             >
               <label className="wall-editor-panel__checkbox">
@@ -169,7 +171,7 @@ export function WallEditorPanel({
                   checked={showHeatmap}
                   onChange={(event) => onToggleShowHeatmap(event.target.checked)}
                 />
-                Heatmap
+                {t('wallEditor.layerHeatmap')}
               </label>
               <label className="wall-editor-panel__checkbox">
                 <input
@@ -177,15 +179,15 @@ export function WallEditorPanel({
                   checked={showMeasurements}
                   onChange={(event) => onToggleShowMeasurements(event.target.checked)}
                 />
-                Medições
+                {t('wallEditor.layerMeasurements')}
               </label>
               <label className="wall-editor-panel__checkbox">
                 <input type="checkbox" checked={showImage} onChange={(event) => onToggleShowImage(event.target.checked)} />
-                Imagem
+                {t('wallEditor.layerImage')}
               </label>
               <label className="wall-editor-panel__checkbox">
                 <input type="checkbox" checked={showWalls} onChange={(event) => onToggleShowWalls(event.target.checked)} />
-                Objetos
+                {t('wallEditor.layerObjects')}
               </label>
             </div>
           )}
@@ -197,8 +199,8 @@ export function WallEditorPanel({
           type="button"
           className={toolClass('select')}
           onClick={() => onSelectWallTool('select')}
-          title="Mover objetos — selecionar e arrastar vértices, paredes ou formas"
-          aria-label="Mover objetos"
+          title={t('wallEditor.moveToolTitle')}
+          aria-label={t('wallEditor.moveToolAriaLabel')}
           aria-pressed={wallEditing && wallTool === 'select'}
         >
           <PanToolIcon width={22} height={22} />
@@ -207,8 +209,8 @@ export function WallEditorPanel({
           type="button"
           className={toolClass('draw')}
           onClick={() => onSelectWallTool('draw')}
-          title="Desenhar linhas — clique a clique, encadeia segmentos"
-          aria-label="Desenhar linhas"
+          title={t('wallEditor.drawLineToolTitle')}
+          aria-label={t('wallEditor.drawLineToolAriaLabel')}
           aria-pressed={wallEditing && wallTool === 'draw'}
         >
           <DiagonalLineIcon width={22} height={22} />
@@ -217,8 +219,8 @@ export function WallEditorPanel({
           type="button"
           className={toolClass('rect')}
           onClick={() => onSelectWallTool('rect')}
-          title="Retângulo — arrastar canto a canto; Shift = quadrado"
-          aria-label="Retângulo"
+          title={t('wallEditor.rectToolTitle')}
+          aria-label={t('wallEditor.rectToolAriaLabel')}
           aria-pressed={wallEditing && wallTool === 'rect'}
         >
           <SquareIcon width={22} height={22} />
@@ -227,8 +229,8 @@ export function WallEditorPanel({
           type="button"
           className={toolClass('circle')}
           onClick={() => onSelectWallTool('circle')}
-          title="Círculo — arrastar do centro até a borda"
-          aria-label="Círculo"
+          title={t('wallEditor.circleToolTitle')}
+          aria-label={t('wallEditor.circleToolAriaLabel')}
           aria-pressed={wallEditing && wallTool === 'circle'}
         >
           <CircleIcon width={22} height={22} />
@@ -237,8 +239,8 @@ export function WallEditorPanel({
           type="button"
           className={toolClass('arc')}
           onClick={() => onSelectWallTool('arc')}
-          title="Arco — 3 cliques: início, fim e curvatura"
-          aria-label="Arco"
+          title={t('wallEditor.arcToolTitle')}
+          aria-label={t('wallEditor.arcToolAriaLabel')}
           aria-pressed={wallEditing && wallTool === 'arc'}
         >
           <LineCurveIcon width={22} height={22} />
@@ -252,10 +254,10 @@ export function WallEditorPanel({
           onClick={onToggleCalibrate}
           title={
             calibrating
-              ? 'Cancelar régua — clique em aresta mede Size/Thickness; clique na planta calibra escala'
-              : 'Régua — clique em aresta: Size/Thickness; clique na planta: calibrar escala'
+              ? t('wallEditor.rulerCancelTitle')
+              : t('wallEditor.rulerTitle')
           }
-          aria-label={calibrating ? 'Cancelar régua' : 'Régua / calibrar escala'}
+          aria-label={calibrating ? t('wallEditor.rulerCancelAriaLabel') : t('wallEditor.rulerAriaLabel')}
           aria-pressed={calibrating}
         >
           <CalibrateIcon width={22} height={22} />
@@ -271,8 +273,8 @@ export function WallEditorPanel({
               className="wall-editor-panel__tool wall-editor-panel__tool--danger"
               onClick={onDeleteSelection}
               disabled={!hasSelection}
-              title="Excluir seleção"
-              aria-label="Excluir seleção"
+              title={t('wallEditor.deleteSelectionTitle')}
+              aria-label={t('wallEditor.deleteSelectionAriaLabel')}
             >
               <DeleteIcon width={22} height={22} />
             </button>
@@ -286,8 +288,8 @@ export function WallEditorPanel({
           className="wall-editor-panel__tool"
           onClick={onUndo}
           disabled={!canUndo}
-          title={`Desfazer (${UNDO_SHORTCUT_LABEL})`}
-          aria-label={`Desfazer (${UNDO_SHORTCUT_LABEL})`}
+          title={t('wallEditor.undoTitle', { shortcut: UNDO_SHORTCUT_LABEL })}
+          aria-label={t('wallEditor.undoAriaLabel', { shortcut: UNDO_SHORTCUT_LABEL })}
         >
           <UndoIcon width={22} height={22} />
         </button>
@@ -296,8 +298,8 @@ export function WallEditorPanel({
           className="wall-editor-panel__tool"
           onClick={onRedo}
           disabled={!canRedo}
-          title={`Refazer (${REDO_SHORTCUT_LABEL})`}
-          aria-label={`Refazer (${REDO_SHORTCUT_LABEL})`}
+          title={t('wallEditor.redoTitle', { shortcut: REDO_SHORTCUT_LABEL })}
+          aria-label={t('wallEditor.redoAriaLabel', { shortcut: REDO_SHORTCUT_LABEL })}
         >
           <RedoIcon width={22} height={22} />
         </button>
@@ -321,6 +323,7 @@ function GlobalStrokeControl({
   value: number | null
   onChange: (value: number) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState(value !== null ? String(value) : '')
 
   // Sincroniza quando o pai muda (após persistir, ou se walls de outra planta entram).
@@ -349,10 +352,10 @@ function GlobalStrokeControl({
   return (
     <>
       <div className="wall-editor-panel__toolbar-divider" aria-hidden="true" />
-      <div className="wall-editor-panel__stroke-control" title="Espessura de todas as arestas (px)">
+      <div className="wall-editor-panel__stroke-control" title={t('wallEditor.strokeWidthTitle')}>
         <label className="wall-editor-panel__stroke-icon" htmlFor="wall-stroke-width-all">
           <LineWeightIcon width={22} height={22} />
-          <span className="sr-only">Espessura de todas as arestas</span>
+          <span className="sr-only">{t('wallEditor.strokeWidthSrOnly')}</span>
         </label>
         <div className="wall-editor-panel__stroke-row">
           <button
@@ -360,8 +363,8 @@ function GlobalStrokeControl({
             className="wall-editor-panel__stroke-nudge"
             onClick={() => nudge(-1)}
             disabled={(value ?? STROKE_MIN) <= STROKE_MIN}
-            aria-label="Diminuir espessura"
-            title="Diminuir"
+            aria-label={t('wallEditor.decreaseStrokeAriaLabel')}
+            title={t('wallEditor.decreaseTitle')}
           >
             −
           </button>
@@ -391,15 +394,15 @@ function GlobalStrokeControl({
               }
             }}
             className="wall-editor-panel__stroke-input"
-            aria-label="Espessura do traço de todas as paredes"
+            aria-label={t('wallEditor.strokeInputAriaLabel')}
           />
           <button
             type="button"
             className="wall-editor-panel__stroke-nudge"
             onClick={() => nudge(1)}
             disabled={(value ?? STROKE_MIN) >= STROKE_MAX}
-            aria-label="Aumentar espessura"
-            title="Aumentar"
+            aria-label={t('wallEditor.increaseStrokeAriaLabel')}
+            title={t('wallEditor.increaseTitle')}
           >
             +
           </button>

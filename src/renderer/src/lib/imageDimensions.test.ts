@@ -15,21 +15,27 @@ function makeFile(type: string, sizeBytes: number): File {
 
 describe('validateFloorPlanImageFile', () => {
   it('accepts PNG, JPEG and WEBP within the size limit', () => {
-    expect(validateFloorPlanImageFile(makeFile('image/png', 1024))).toBeNull()
-    expect(validateFloorPlanImageFile(makeFile('image/jpeg', 1024))).toBeNull()
-    expect(validateFloorPlanImageFile(makeFile('image/webp', 1024))).toBeNull()
+    expect(validateFloorPlanImageFile(makeFile('image/png', 1024))).toEqual({ ok: true })
+    expect(validateFloorPlanImageFile(makeFile('image/jpeg', 1024))).toEqual({ ok: true })
+    expect(validateFloorPlanImageFile(makeFile('image/webp', 1024))).toEqual({ ok: true })
   })
 
   it('rejects an unsupported type', () => {
-    expect(validateFloorPlanImageFile(makeFile('image/gif', 1024))).toMatch(/formato inválido/i)
+    expect(validateFloorPlanImageFile(makeFile('image/gif', 1024))).toEqual({
+      ok: false,
+      errorKey: 'error.floorPlanImageInvalid'
+    })
   })
 
   it('rejects a file over the size limit', () => {
-    expect(validateFloorPlanImageFile(makeFile('image/png', MAX_IMAGE_FILE_SIZE + 1))).toMatch(/10 mb/i)
+    expect(validateFloorPlanImageFile(makeFile('image/png', MAX_IMAGE_FILE_SIZE + 1))).toEqual({
+      ok: false,
+      errorKey: 'error.floorPlanImageInvalid'
+    })
   })
 
   it('accepts a file exactly at the size limit', () => {
-    expect(validateFloorPlanImageFile(makeFile('image/png', MAX_IMAGE_FILE_SIZE))).toBeNull()
+    expect(validateFloorPlanImageFile(makeFile('image/png', MAX_IMAGE_FILE_SIZE))).toEqual({ ok: true })
   })
 })
 

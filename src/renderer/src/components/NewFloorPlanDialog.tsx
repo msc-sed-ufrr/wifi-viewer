@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { createFloorPlan, createProject } from '../modules/projects/api'
 import { createPoint } from '../modules/points/api'
 import { addReadings } from '../modules/readings/api'
+import { CsvImportError } from '../modules/import/csvParser'
 import { parseConsolidatedCsv, resolveImportedPosition, type LocatedReadingGroup } from '../modules/import/consolidatedImport'
 import {
   createBlankFloorPlanImage,
@@ -17,9 +19,19 @@ interface Props {
   onCancel: () => void
 }
 
+/** Traduz um erro com chave i18n (`CsvImportError`) ou passa adiante qualquer outra mensagem. */
+function translateError(t: (key: string, params?: Record<string, unknown>) => string, err: unknown): string {
+  if (err instanceof CsvImportError) {
+    return t(err.errorKey, err.params ?? {})
+  }
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
 export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [projectName, setProjectName] = useState('')
-  const [floorPlanName, setFloorPlanName] = useState(project ? '' : 'Planta 1')
+  const [floorPlanName, setFloorPlanName] = useState(project ? '' : t('common.defaultFloorPlanName'))
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [csvFile, setCsvFile] = useState<File | null>(null)
@@ -66,9 +78,9 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     }
 
     const validationError = validateFloorPlanImageFile(selectedFile)
-    if (validationError) {
+    if (!validationError.ok) {
       setFile(null)
-      setError(validationError)
+      setError(t(validationError.errorKey))
       return
     }
 
@@ -103,7 +115,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     } catch (err) {
       setCsvFile(null)
       setCsvGroups(null)
-      setError(err instanceof Error ? err.message : String(err))
+      setError(translateError(t, err))
     }
   }
 
@@ -119,7 +131,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     // CSV consolidado carrega posições em px da imagem original — sem imagem, importar
     // pontos numa planta em branco enganaria o usuário (dimensões finais ≠ as do export).
     if (csvGroups && !file) {
-      setError('Importe uma imagem da planta para carregar o CSV de leituras (as posições dependem dela).')
+      setError(t('error.csvRequiresImage'))
       return
     }
 
@@ -127,7 +139,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
     setError(null)
 
     try {
-      const targetProject = project ?? (await createProject(projectName.trim() || 'Meu levantamento'))
+      const targetProject = project ?? (await createProject(projectName.trim() || t('common.defaultProjectName')))
 
       // Sem arquivo: planta em branco (~40 m × 30 m, pré-calibrada) pra desenhar arestas.
       const imageSource = file
@@ -141,7 +153,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
       const floorPlan = await createFloorPlan(
         targetProject.id,
-        floorPlanName.trim() || 'Nova planta',
+        floorPlanName.trim() || t('common.defaultFloorPlanName'),
         imageSource.blob,
         imageSource.width,
         imageSource.height,
@@ -158,7 +170,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
       onCreated(targetProject, floorPlan)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(translateError(t, err))
     } finally {
       setSubmitting(false)
     }
@@ -180,43 +192,40 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
   return (
     <div className="modal-overlay">
       <form className="modal" onSubmit={handleSubmit}>
-        <h2>{project ? `Nova planta em "${project.name}"` : 'Novo levantamento'}</h2>
+        <h2>{project ? t('dialog.newFloorPlan.titleForProject', { name: project.name }) : t('dialog.newFloorPlan.title')}</h2>
 
         {!project && (
           <label>
-            Nome do levantamento
+            {t('dialog.newFloorPlan.projectNameLabel')}
             <input
               autoFocus
               type="text"
               value={projectName}
               onChange={(event) => setProjectName(event.target.value)}
-              placeholder="Ex.: Prédio CIT"
+              placeholder={t('dialog.newFloorPlan.projectNamePlaceholder')}
             />
           </label>
         )}
 
         <label>
-          Nome da planta
+          {t('dialog.newFloorPlan.floorPlanNameLabel')}
           <input
             type="text"
             value={floorPlanName}
             onChange={(event) => setFloorPlanName(event.target.value)}
-            placeholder="Ex.: Térreo"
+            placeholder={t('dialog.newFloorPlan.floorPlanNamePlaceholder')}
           />
         </label>
 
         <label>
-          Imagem da planta (opcional)
+          {t('dialog.newFloorPlan.imageLabel')}
           <input
             type="file"
             accept=".png,.jpg,.jpeg,.webp"
             onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
           />
         </label>
-        <p className="modal__hint">
-          Sem imagem, a planta nasce em branco (~40 m × 30 m, pré-calibrada) pra desenhar as
-          arestas do terreno.
-        </p>
+        <p className="modal__hint">{t('dialog.newFloorPlan.blankImageHint')}</p>
 
         {previewUrl && file && (
           <div>
@@ -224,7 +233,7 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
             <img
               src={previewUrl}
-              alt="Pré-visualização da planta baixa"
+              alt={t('dialog.newFloorPlan.previewAlt')}
               style={{
                 width: '100%',
                 maxHeight: '300px',
@@ -233,51 +242,45 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
             />
 
             <button type="button" onClick={handleRemoveFile}>
-              Remover imagem
+              {t('dialog.newFloorPlan.removeImage')}
             </button>
           </div>
         )}
 
         <label>
-          Leituras (CSV, opcional)
+          {t('dialog.newFloorPlan.csvLabel')}
           <input
             type="file"
             accept=".csv,.txt"
             onChange={(event) => handleCsvFileChange(event.target.files?.[0] ?? null)}
           />
         </label>
-        <p className="modal__hint">
-          Recria os pontos de um CSV consolidado (exportado por planta ou levantamento) —
-          as posições só fazem sentido se a imagem acima for a mesma do export original
-          (exige imagem).
-        </p>
+        <p className="modal__hint">{t('dialog.newFloorPlan.csvHint')}</p>
 
         {csvFile && csvGroups && (
           <div>
             <p className="modal__hint">
-              {csvFile.name}: {csvGroups.length}{' '}
-              {csvGroups.length === 1 ? 'ponto encontrado' : 'pontos encontrados'} (
-              {csvGroups.reduce((sum, group) => sum + group.readings.length, 0)} leituras)
+              {t('dialog.newFloorPlan.csvSummary', {
+                file: csvFile.name,
+                count: csvGroups.length,
+                readings: csvGroups.reduce((sum, group) => sum + group.readings.length, 0)
+              })}
             </p>
 
             {rescaledCount > 0 && (
               <p className="modal__hint">
-                {rescaledCount} {rescaledCount === 1 ? 'ponto será reposicionado' : 'pontos serão reposicionados'}{' '}
-                proporcionalmente — a planta de origem tem dimensões diferentes da imagem escolhida acima.
+                {t('dialog.newFloorPlan.rescaledHint', { count: rescaledCount })}
               </p>
             )}
 
             {clampedCount > 0 && (
               <p className="modal__warning">
-                {clampedCount} {clampedCount === 1 ? 'ponto fica' : 'pontos ficam'} fora dos limites da imagem
-                escolhida e {clampedCount === 1 ? 'nascerá preso' : 'nascerão presos'} à borda — visível, mas na
-                posição errada. Troque a imagem acima pela original do export (ou uma com as mesmas dimensões) pra
-                corrigir, ou continue e ajuste as posições manualmente depois.
+                {t('dialog.newFloorPlan.clampedHint', { count: clampedCount })}
               </p>
             )}
 
             <button type="button" onClick={handleRemoveCsvFile}>
-              Remover CSV
+              {t('dialog.newFloorPlan.removeCsv')}
             </button>
           </div>
         )}
@@ -286,11 +289,11 @@ export function NewFloorPlanDialog({ project, onCreated, onCancel }: Props): JSX
 
         <div className="modal__actions">
           <button type="button" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
 
           <button type="submit" disabled={submitting}>
-            {submitting ? 'Criando…' : 'Criar'}
+            {submitting ? t('common.creating') : t('common.create')}
           </button>
         </div>
       </form>

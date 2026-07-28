@@ -15,15 +15,21 @@ export const BLANK_FLOOR_PLAN_HEIGHT_M = 30
 export const BLANK_FLOOR_PLAN_WIDTH_PX = BLANK_FLOOR_PLAN_WIDTH_M * BLANK_FLOOR_PLAN_PPM
 export const BLANK_FLOOR_PLAN_HEIGHT_PX = BLANK_FLOOR_PLAN_HEIGHT_M * BLANK_FLOOR_PLAN_PPM
 
-/** Formato/tamanho aceitáveis pra imagem de planta — null quando válido. */
-export function validateFloorPlanImageFile(file: File): string | null {
+/**
+ * Valida formato/tamanho da imagem de planta. Retorna `{ ok: true }` quando aceitável,
+ * ou `{ ok: false, errorKey }` com uma chave de i18n (`error.floorPlanImageInvalid`)
+ * pra o caller traduzir no limite do componente — mantém a lib pura (sem `t`).
+ */
+export function validateFloorPlanImageFile(
+  file: File
+): { ok: true } | { ok: false; errorKey: 'error.floorPlanImageInvalid' } {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return 'Formato inválido. Use PNG, JPG, JPEG ou WEBP.'
+    return { ok: false, errorKey: 'error.floorPlanImageInvalid' }
   }
   if (file.size > MAX_IMAGE_FILE_SIZE) {
-    return 'A imagem deve ter no máximo 10 MB.'
+    return { ok: false, errorKey: 'error.floorPlanImageInvalid' }
   }
-  return null
+  return { ok: true }
 }
 
 export function loadImageDimensions(file: Blob): Promise<{ width: number; height: number }> {
@@ -35,7 +41,9 @@ export function loadImageDimensions(file: Blob): Promise<{ width: number; height
       URL.revokeObjectURL(url)
     }
     img.onerror = () => {
-      reject(new Error('Não foi possível ler a imagem da planta.'))
+      // Sentinel key: callers traduzem via `t('error.floorPlanImageRead')` quando a
+      // mensagem começa com `error.` (lib pura não importa react-i18next).
+      reject(new Error('error.floorPlanImageRead'))
       URL.revokeObjectURL(url)
     }
     img.src = url
@@ -77,7 +85,7 @@ export function createBlankFloorPlanImage(): Promise<{
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) return Promise.reject(new Error('Não foi possível criar a planta em branco.'))
+  if (!ctx) return Promise.reject(new Error('error.blankFloorPlanCreate'))
 
   // Fundo branco — canvas de desenho de arestas, não uma planta fotográfica.
   ctx.fillStyle = '#ffffff'
@@ -101,7 +109,7 @@ export function createBlankFloorPlanImage(): Promise<{
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
-        reject(new Error('Não foi possível criar a planta em branco.'))
+        reject(new Error('error.blankFloorPlanCreate'))
         return
       }
       resolve({ blob, width, height, calibration })

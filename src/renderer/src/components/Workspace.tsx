@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type {
   FloorPlan,
   FloorPlanCalibration,
@@ -94,6 +95,7 @@ const MIN_HEATMAP_POINTS = 2
 const DEFAULT_WALL_STROKE_WIDTH = 3
 
 export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [floorPlan, setFloorPlan] = useState(initialFloorPlan)
   const [points, setPoints] = useState<MeasurementPoint[]>([])
   const [readingsByPoint, setReadingsByPoint] = useState<Map<string, StoredNetworkReading[]>>(new Map())
@@ -262,11 +264,6 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   const selectedPoint = points.find((point) => point.id === selectedPointId) ?? null
   const selectedPointIndex = selectedPoint ? points.indexOf(selectedPoint) : -1
 
-  const pendingBulkMoveDistanceMeters =
-    pendingBulkMove && pixelsPerMeter
-      ? Math.hypot(pendingBulkMove.dx, pendingBulkMove.dy) / pixelsPerMeter
-      : null
-
   async function handleCreatePoint(x: number, y: number): Promise<void> {
     const point = await createPoint(floorPlan.id, x, y)
     await reload()
@@ -293,7 +290,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       await reload()
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
     }
   }
 
@@ -305,7 +303,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       await reload()
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
     }
   }
 
@@ -760,17 +759,14 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       />
 
       {placingPoints && !calibrating && !wallEditing && (
-        <p className="workspace__notice">
-          Modo adicionar pontos ligado — clique na planta para criar um ponto de medição. Clique de
-          novo em &quot;Adicionar pontos&quot; para desarmar.
-        </p>
+        <p className="workspace__notice">{t('notice.placingPointsOn')}</p>
       )}
 
       {calibrating && !pendingWallMeasure && pendingCalibrationPoints.length < 2 && (
         <p className="workspace__notice">
           {pendingCalibrationPoints.length === 0
-            ? 'Régua armada — clique numa aresta para Size/Thickness, ou dois pontos na planta para calibrar a escala.'
-            : 'Clique no segundo ponto de referência.'}
+            ? t('notice.rulerArmed')
+            : t('notice.secondCalibrationPoint')}
         </p>
       )}
 
@@ -794,51 +790,59 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       {confirmingReset && (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Resetar pontos</h2>
+            <h2>{t('dialog.resetPoints.title')}</h2>
             <p>
-              Remover todos os {points.length} pontos desta planta e suas leituras? Essa ação não pode ser
-              desfeita.
+              {t('dialog.resetPoints.body', { count: points.length, cannot: t('common.cannotBeUndone') })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={() => setConfirmingReset(false)}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmReset}>
-                Remover
+                {t('common.remove')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {pendingBulkMove && (
+      {pendingBulkMove && (() => {
+        const pixelsPerMeter = getPixelsPerMeter(floorPlan)
+        const distanceMeters =
+          pixelsPerMeter !== null
+            ? Math.hypot(pendingBulkMove.dx, pendingBulkMove.dy) / pixelsPerMeter
+            : null
+        const distanceText = distanceMeters !== null ? ` em ${distanceMeters.toFixed(1)}m` : ''
+        return (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Mover todos os pontos</h2>
+            <h2>{t('dialog.bulkMove.title')}</h2>
             <p>
-              Deslocar {points.length === 1 ? 'o 1 ponto' : `os ${points.length} pontos`} desta planta
-              {pendingBulkMoveDistanceMeters !== null ? ` em ${pendingBulkMoveDistanceMeters.toFixed(1)}m` : ''}?
-              Essa ação não pode ser desfeita.
+              {t('dialog.bulkMove.body', {
+                count: points.length,
+                distance: distanceText,
+                cannot: t('common.cannotBeUndone')
+              })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={handleCancelBulkMove}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmBulkMove}>
-                Mover
+                {t('common.move')}
               </button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {!isAllNetworks &&
         selectedNetworkKey &&
         heatmapPoints.length > 0 &&
         heatmapPoints.length < MIN_HEATMAP_POINTS && (
           <p className="workspace__notice">
-            Apenas {heatmapPoints.length} ponto com essa rede — adicione ao menos {MIN_HEATMAP_POINTS}{' '}
-            pontos para um heatmap mais confiável.
+            {t('notice.heatmapTooFewPoints', { count: heatmapPoints.length, min: MIN_HEATMAP_POINTS })}
           </p>
         )}
 
@@ -930,19 +934,19 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       {confirmingDeleteVertex && (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Excluir vértice</h2>
+            <h2>{t('dialog.deleteVertex.title')}</h2>
             <p>
-              Este vértice é usado por{' '}
-              {confirmingDeleteVertex.wallCount === 1 ? '1 parede' : `${confirmingDeleteVertex.wallCount} paredes`}.
-              Excluí-lo remove {confirmingDeleteVertex.wallCount === 1 ? 'essa parede também' : 'essas paredes também'}.
-              Essa ação não pode ser desfeita.
+              {t('dialog.deleteVertex.body', {
+                count: confirmingDeleteVertex.wallCount,
+                cannot: t('common.cannotBeUndone')
+              })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={handleCancelDeleteVertex}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmDeleteVertex}>
-                Excluir
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -954,7 +958,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       {error && (
         <div className="workspace__error" role="alert">
           {error}
-          <button type="button" onClick={() => setError(null)} aria-label="Fechar erro">
+          <button type="button" onClick={() => setError(null)} aria-label={t('common.closeErrorAriaLabel')}>
             <CloseIcon width={16} height={16} />
           </button>
         </div>
