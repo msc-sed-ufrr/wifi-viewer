@@ -30,7 +30,7 @@ export function Toolbar({
   onResetPoints,
   hasPoints
 }: Props): JSX.Element {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
 
   function handleNetworkChange(event: ChangeEvent<HTMLSelectElement>): void {
     onSelectNetwork(event.target.value || null)
@@ -38,10 +38,6 @@ export function Toolbar({
 
   function handleBandChange(event: ChangeEvent<HTMLSelectElement>): void {
     onBandChange(event.target.value as Band)
-  }
-
-  function handleLanguageChange(event: ChangeEvent<HTMLSelectElement>): void {
-    void i18n.changeLanguage(event.target.value)
   }
 
   return (
@@ -71,17 +67,6 @@ export function Toolbar({
           <option value="all">{t('toolbar.allBands')}</option>
           <option value="2.4GHz">2.4GHz</option>
           <option value="5GHz">5GHz</option>
-        </select>
-
-        <label htmlFor="language-select">{t('toolbar.language')}</label>
-
-        <select
-          id="language-select"
-          value={i18n.resolvedLanguage ?? i18n.language}
-          onChange={handleLanguageChange}
-        >
-          <option value="pt-BR">Português</option>
-          <option value="en">English</option>
         </select>
       </div>
 
