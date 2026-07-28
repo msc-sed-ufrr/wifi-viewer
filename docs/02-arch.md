@@ -12,7 +12,7 @@ Projeto em fase de POC, funcional de ponta a ponta com o escopo inicial do PRD i
 
 | Serviço      | Runtime                          | Responsabilidade                                                            |
 | ------------- | ---------------------------------- | ------------------------------------------------------------------------------ |
-| `renderer/`   | React + TypeScript + Vite, executado no Chromium do Electron | UI completa: sidebar de levantamentos/plantas, upload e calibração de escala da planta, marcação/edição de pontos, importação de CSV, captura ao vivo via IPC, cálculo e renderização do heatmap (IDW), visão de canais/interferência, persistência local |
+| `renderer/`   | React + TypeScript + Vite, executado no Chromium do Electron | UI completa: sidebar de levantamentos/plantas, upload e calibração de escala da planta, marcação/edição de pontos, importação de CSV, captura ao vivo via IPC, cálculo e renderização do heatmap (IDW), visão de canais/interferência, i18n com `i18next`/`react-i18next` (PT-BR default + EN, persistido em `localStorage`), persistência local |
 | `main/`       | Electron main process (Node.js + TypeScript) | Ciclo de vida da janela/app, execução da varredura Wi-Fi nativa do SO, exposição de API mínima ao renderer via `preload`/IPC |
 | IndexedDB     | Nativo do Chromium (dentro do `renderer/`) | Único armazenamento: projetos, imagens de planta, pontos, leituras            |
 
@@ -34,6 +34,7 @@ flowchart TD
 
     subgraph renderer1["renderer/"]
         UI1["UI: Sidebar, Toolbar,<br/>FloorPlanCanvas, PointPanel"]
+        I18n["i18n.ts<br/>(i18next init +<br/>locales/*.json)"]
         CsvParser["import/csvParser.ts"]
         LiveCapture["import/liveCapture.ts"]
         ProjectsApi["projects/api.ts"]
@@ -63,6 +64,7 @@ flowchart TD
 
     UI1 -->|"cria/move/apaga ponto"| PointsApi
     UI1 -->|"cria/renomeia; calibra"| ProjectsApi
+    UI1 -->|"t('toolbar.*')<br/>(re-render<br/>em changeLanguage)"| I18n
     PointsApi --> Store
     ReadingsApi --> Store
     ProjectsApi --> Store
@@ -120,6 +122,17 @@ Diferente do design original baseado em processo `agent/` separado via HTTP (ver
 6. O renderer recebe a lista via IPC e grava via `readings/api.ts` (`addReadings`), do mesmo jeito que gravaria leituras importadas de um arquivo.
 7. Se o comando falhar em tempo de execução (ex.: permissão negada, `macwifi-cli` desinstalado depois do check inicial), o erro é capturado em `Workspace.handleLiveCapture` e mostrado no banner de erro, sem falhar silenciosamente.
 
+### 3.3 Resolução de idioma (i18n)
+
+O i18n é puramente camada de apresentação do renderer (ver ADR-047) — por isso não aparece no diagrama 3b (geração do heatmap e visão de canais, que é caminho lógico/matemático puro) e nem atravessa IPC/persistência de domínio; o fluxo de resolução de idioma é todo local ao runtime do renderer:
+
+1. `main.tsx` importa `./i18n` antes de montar `<App />` — o `i18n.init()` resolve o `resources` (JSONs de `locales/`) de forma síncrona, sem `<Suspense>` nem flag de "carregando".
+2. Idioma inicial é resolvido em `detectInitialLanguage()` (`i18n.ts`): primeiro `localStorage[LANGUAGE_STORAGE_KEY]` (`'wifi-viewer-language'`) se o valor for `'pt-BR'` ou `'en'`; senão, `navigator.language.toLowerCase().startsWith('pt')` → `'pt-BR'`; senão `'en'`.
+3. Componentes consomem via `useTranslation()` e `t('namespace.key')`; a troca de idioma pelo `<select id="language-select">` na `Toolbar` dispara `i18n.changeLanguage(lang)`, que re-renderiza toda a árvore via Context interno do `react-i18next` — sem reload da página.
+4. Um listener `i18n.on('languageChanged', …)` (`i18n.ts`) persiste a escolha do usuário na mesma chave do `localStorage` na hora, valendo para execuções futuras.
+5. `fallbackLng: 'en'` — qualquer chave ausente em PT-BR/EN cai em inglês (idioma de trabalho do projeto, segundo o histórico de commits).
+6. Nenhum dado de domínio (projeto/planta/ponto/leitura) carrega informação de locale; troca de idioma é puramente camada de apresentação e não reinicia o app.
+
 ---
 
 ## 4. Domain Modules
@@ -163,6 +176,7 @@ Dado o escopo de ferramenta pessoal, single-user e sem backend remoto, não há 
 - **`idb`** — wrapper tipado sobre IndexedDB para persistência de projetos, imagens de planta (blobs), pontos e leituras.
 - **Parser próprio** (`import/csvParser.ts`, sem dependência externa) — leitura do arquivo de scan delimitado (formato de referência descrito no PRD, regra de negócio "Importação de dados") em linhas tipadas; `papaparse` nunca chegou a ser usado na prática.
 - **Zustand** (`store/uiStore.ts`) — só o estado de UI verdadeiramente global (ponto selecionado, rede selecionada). Estado de tela (zoom, pan, calibração pendente, sidebar colapsada, legenda expandida) fica em `useState` local do próprio componente, não centralizado no store.
+- **`i18next` + `react-i18next`** (`i18next ^26.3.6`, `react-i18next ^17.0.11`) — runtime de internacionalização no renderer; locales em `src/renderer/src/locales/<lang>.json` (PT-BR default + EN), detecção via `localStorage`/`navigator.language`, persistência da escolha em `localStorage`; ver ADR-047.
 - **SVG nativo** (sem lib externa) — gráfico de distribuição de canais (`channels/channelUsage.ts` + componente de visualização).
 
 ### `main/` (Electron main process, Node.js + TypeScript)
@@ -202,6 +216,7 @@ Cada leitura normalizada carrega um campo `signalSource: "measured" | "estimated
 - Timestamps armazenados em ISO 8601 UTC; formatação de exibição é responsabilidade da camada de apresentação.
 - Importação de arquivo de scan é estrita: contagem/ordem de colunas fora do formato de referência é rejeitada com erro explícito, sem tentativa de adivinhação heurística.
 - Testes com Vitest, sem Testing Library nem testes de componente/DOM ainda — cobertura hoje é 100% lógica pura: `heatmap` (`idw.test.ts`, `colorScale.test.ts`), `import` (`csvParser.test.ts`), `channels` (`channelUsage.test.ts`), `readings` (`distance.test.ts`, `network.test.ts`) e o parser macOS do `wifiScan` (`macos.test.ts`).
+- Strings de UI residem em `src/renderer/src/locales/<lang>.json`; nunca hardcoded em componentes (`t('namespace.key')` via `useTranslation`). Locale persiste em `localStorage` (`wifi-viewer-language`), não no schema de projeto.
 
 ---
 
