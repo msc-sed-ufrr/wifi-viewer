@@ -1,0 +1,17 @@
+{
+    "toolbar": {
+      "network": "Rede",
+      "selectNetwork": "Selecione uma rede…",
+      "allNetworks": "Todas as redes",
+      "band": "Banda",
+      "allBands": "Todas",
+      "language": "Idioma",
+      "addPoints": "Adicionar pontos",
+      "addPointsOn": "Adicionar pontos: ligado",
+      "resetPoints": "Resetar pontos",
+      "lightTheme": "Tema claro",
+      "darkTheme": "Tema escuro",
+      "enablePointCreation": "Armar criação de pontos — cliques vazios na planta passam a criar medições",
+      "disablePointCreation": "Desarmar criação de pontos — cliques vazios na planta não criam mais medições"
+    }
+  }

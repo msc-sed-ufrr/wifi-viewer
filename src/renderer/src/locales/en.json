@@ -1,0 +1,17 @@
+{
+    "toolbar": {
+      "network": "Network",
+      "selectNetwork": "Select a network…",
+      "allNetworks": "All networks",
+      "band": "Band",
+      "allBands": "All",
+      "language": "Language",
+      "addPoints": "Add points",
+      "addPointsOn": "Add points: on",
+      "resetPoints": "Reset points",
+      "lightTheme": "Light theme",
+      "darkTheme": "Dark theme",
+      "enablePointCreation": "Enable point creation — empty clicks on the floor plan will create measurements",
+      "disablePointCreation": "Disable point creation — empty clicks on the floor plan will no longer create measurements"
+    }
+  }
