@@ -16,6 +16,10 @@
     "enablePointCreation": "Armar criação de pontos — cliques vazios na planta passam a criar medições",
     "disablePointCreation": "Desarmar criação de pontos — cliques vazios na planta não criam mais medições"
   },
+  "language": {
+    "portuguese": "Português",
+    "english": "English"
+  },
   "common": {
     "cancel": "Cancelar",
     "confirm": "Confirmar",

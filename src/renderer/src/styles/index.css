@@ -373,78 +373,184 @@ body {
 
 .sidebar__footer {
   border-top: 1px solid #1f2937;
-  padding: 10px 12px;
+  padding: 8px 12px;
   background: #0b1220;
 }
 
-/* Painel de preferências (Language/Tema) */
+/* Menu dropup de preferências — root contém trigger + popover. */
+.preferences-menu-root {
+  position: relative;
+  display: block;
+}
+
+.preferences-menu__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.preferences-menu__trigger:hover {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.preferences-menu__trigger[aria-expanded='true'] {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.preferences-menu__trigger-label {
+  flex: 1;
+}
+
+/* Painel principal — dropup ancorado no bottom do trigger.
+   position: fixed é aplicado inline (ver PreferencesMenu.tsx) — escapa do overflow
+   da sidebar e nunca é cortado pelo scroll do shell. */
 .preferences-menu {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  min-width: 200px;
+  padding: 4px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.preferences-menu__header {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  border-bottom: 1px solid #374151;
+}
+
+.preferences-menu__row-wrapper {
+  position: relative;
 }
 
 .preferences-menu__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-}
-
-.preferences-menu__label {
-  font-size: 12px;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.preferences-menu__select-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.preferences-menu__select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding: 6px 28px 6px 10px;
-  font-size: 12.5px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
   color: #e5e7eb;
-  background: #1f2937;
-  border: 1px solid #374151;
-  border-radius: 6px;
-  cursor: pointer;
-  min-width: 96px;
-}
-
-.preferences-menu__select-wrap::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid #9ca3af;
-  border-bottom: 1.5px solid #9ca3af;
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-
-.preferences-menu__theme-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid #374151;
-  background: #1f2937;
-  color: #e5e7eb;
+  font-size: 13px;
+  text-align: left;
   cursor: pointer;
   transition: background 0.1s ease;
 }
 
-.preferences-menu__theme-btn:hover {
+.preferences-menu__row:hover,
+.preferences-menu__row[aria-expanded='true'] {
   background: #374151;
+}
+
+.preferences-menu__row-label {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Theme switch — pill toggle deslizante na linha Tema.
+   Track fica cinza no estado claro e azul-escuro no escuro; knob âmbar (sol)
+   desliza pra direita e vira claro (lua). `pointer-events: none` no track
+   garante que o clique sempre cai no botão-pai (role=switch). */
+.theme-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  background: #4b5563;
+  transition: background 0.18s ease;
+  pointer-events: none;
+}
+
+.preferences-menu__row--theme[aria-checked='true'] .theme-switch {
+  background: #1e3a8a;
+}
+
+.theme-switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fbbf24;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: left 0.18s cubic-bezier(0.4, 0, 0.2, 1), background 0.18s ease;
+}
+
+.preferences-menu__row--theme[aria-checked='true'] .theme-switch__knob {
+  left: 23px;
+  background: #e5e7eb;
+}
+
+/* Submenu Language — flutua à direita do item (cabeçalho), porque a sidebar é estreita. */
+.preferences-menu__submenu {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 0;
+  min-width: 180px;
+  padding: 4px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  z-index: 31;
+}
+
+.preferences-menu__submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.preferences-menu__submenu-item:hover {
+  background: #374151;
+}
+
+.preferences-menu__submenu-item--active {
+  color: #f9fafb;
+}
+
+.preferences-menu__submenu-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #93c5fd;
 }
 
 .app-main {

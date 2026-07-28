@@ -16,6 +16,10 @@
     "enablePointCreation": "Enable point creation — empty clicks on the floor plan will create measurements",
     "disablePointCreation": "Disable point creation — empty clicks on the floor plan will no longer create measurements"
   },
+  "language": {
+    "portuguese": "Portuguese",
+    "english": "English"
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",

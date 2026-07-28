@@ -233,3 +233,30 @@ export function LayersIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
     </Icon>
   )
 }
+
+/** Material Symbols `settings` (filled) — engrenagem. */
+export function SettingsIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="m388-80-20-126q-19-7-40-19t-37-25l-118 54-93-164 108-79q-2-9-2.5-20.5T185-480q0-9 .5-20.5T188-521L80-600l93-164 118 54q16-13 37-25t40-18l20-127h184l20 126q19 7 40.5 18.5T669-710l118-54 93 164-108 77q2 10 2.5 21.5t.5 21.5q0 10-.5 21t-2.5 21l108 78-93 164-118-54q-16 13-36.5 25.5T592-206L572-80H388Zm92-270q54 0 92-38t38-92q0-54-38-92t-92-38q-54 0-92 38t-38 92q0 54 38 92t92 38Z" />
+    </Icon>
+  )
+}
+
+/** Material Symbols `language` (filled) — globo com meridianos. */
+export function LanguageIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M323-111.5Q250-143 196-197t-85-127.5Q80-398 80-482t31-156.5Q142-711 196-765t127-84.5Q396-880 480-880t157 30.5Q710-819 764-765t85 126.5Q880-566 880-482t-31 157.5Q818-251 764-197t-127 85.5Q564-80 480-80t-157-31.5ZM480-138q35-36 58.5-82.5T577-331H384q14 60 37.5 108t58.5 85Zm-85-12q-25-38-43-82t-30-99H172q38 71 88 111.5T395-150Zm171-1q72-23 129.5-69T788-331H639q-13 54-30.5 98T566-151ZM152-391h159q-3-27-3.5-48.5T307-482q0-25 1-44.5t4-43.5H152q-7 24-9.5 43t-2.5 45q0 26 2.5 46.5T152-391Zm221 0h215q4-31 5-50.5t1-40.5q0-20-1-38.5t-5-49.5H373q-4 31-5 49.5t-1 38.5q0 21 1 40.5t5 50.5Zm275 0h160q7-24 9.5-44.5T820-482q0-26-2.5-45t-9.5-43H649q3 35 4 53.5t1 34.5q0 22-1.5 41.5T648-391Zm-10-239h150q-33-69-90.5-115T565-810q25 37 42.5 80T638-630Zm-254 0h194q-11-53-37-102.5T480-820q-32 27-54 71t-42 119Zm-212 0h151q11-54 28-96.5t43-82.5q-75 19-131 64t-91 115Z" />
+    </Icon>
+  )
+}
+
+/** Material Symbols `check` (filled) — marca de confirmação. */
+export function CheckIcon(props: SVGProps<SVGSVGElement>): JSX.Element {
+  return (
+    <Icon {...props}>
+      <path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z" />
+    </Icon>
+  )
+}
