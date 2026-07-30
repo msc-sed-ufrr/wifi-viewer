@@ -9,6 +9,7 @@ import {
   updateFloorPlan,
   updateProject
 } from './modules/projects/api'
+import { upsertFloorPlanInMap } from './modules/projects/floorPlanMap'
 import { createPoint, listPoints, movePoint } from './modules/points/api'
 import { addReadings, listReadingsForFloorPlan } from './modules/readings/api'
 import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
@@ -287,15 +288,19 @@ export function App(): JSX.Element {
     if (!trimmed || trimmed === floorPlan.name) return
     const updated = await updateFloorPlan(floorPlan.id, trimmed)
     if (!updated) return
-    setFloorPlansByProject((prev) => {
-      const next = new Map(prev)
-      const list = next.get(updated.projectId) ?? []
-      next.set(
-        updated.projectId,
-        list.map((fp) => (fp.id === updated.id ? updated : fp))
-      )
-      return next
-    })
+    setFloorPlansByProject((prev) => upsertFloorPlanInMap(prev, updated))
+  }
+
+  /**
+   * Sincroniza uma planta atualizada que saiu do Workspace (calibração de escala,
+   * medir parede, undo/redo) de volta pro mapa do App. Sem isso, o
+   * `activeFloorPlan` derivado do mapa fica stale — trocar de planta e voltar
+   * sobrescreve a cópia local do Workspace e "perde" a calibração (regressão
+   * do bug da escala). Não bumpa o nonce: o Workspace já tem a planta certa
+   * no estado local, só precisamos refrescar a referência do mapa.
+   */
+  function handleFloorPlanUpdated(updated: FloorPlan): void {
+    setFloorPlansByProject((prev) => upsertFloorPlanInMap(prev, updated))
   }
 
   /**
@@ -358,15 +363,7 @@ export function App(): JSX.Element {
       await movePoint(point.id, x, y)
     }
 
-    setFloorPlansByProject((prev) => {
-      const next = new Map(prev)
-      const list = next.get(updated.projectId) ?? []
-      next.set(
-        updated.projectId,
-        list.map((fp) => (fp.id === updated.id ? updated : fp))
-      )
-      return next
-    })
+    setFloorPlansByProject((prev) => upsertFloorPlanInMap(prev, updated))
 
     if (floorPlan.id === activeFloorPlanId) {
       setWorkspaceReloadNonce((n) => n + 1)
@@ -473,6 +470,7 @@ export function App(): JSX.Element {
             key={`${activeFloorPlan.id}:${workspaceReloadNonce}`}
             project={activeProject}
             floorPlan={activeFloorPlan}
+            onFloorPlanUpdated={handleFloorPlanUpdated}
           />
         ) : (
           <div className="app-empty">

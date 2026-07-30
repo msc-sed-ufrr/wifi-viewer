@@ -89,12 +89,19 @@ interface PendingWallMeasure {
 interface Props {
   project: Project
   floorPlan: FloorPlan
+  /**
+   * Sobe a planta atualizada de volta pro App quando uma mutação roda dentro do
+   * Workspace (calibração, medir parede, undo/redo). Sem isso o mapa do App
+   * fica stale e trocar de planta e voltar "perde" a calibração — o App repassa
+   * a referência antiga que sobrescreve a cópia local calibrada.
+   */
+  onFloorPlanUpdated?: (updated: FloorPlan) => void
 }
 
 const MIN_HEATMAP_POINTS = 2
 const DEFAULT_WALL_STROKE_WIDTH = 3
 
-export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.Element {
+export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpdated }: Props): JSX.Element {
   const { t } = useTranslation()
   const [floorPlan, setFloorPlan] = useState(initialFloorPlan)
   const [points, setPoints] = useState<MeasurementPoint[]>([])
@@ -390,7 +397,10 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     pushWallUndoSnapshot()
     const calibration: FloorPlanCalibration = { pointA, pointB, realDistanceMeters }
     const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
-    if (updated) setFloorPlan(updated)
+    if (updated) {
+      setFloorPlan(updated)
+      onFloorPlanUpdated?.(updated)
+    }
   }
 
   /** Clicar na ferramenta já ativa entra/sai do modo de edição de paredes — mesmo comportamento de um app
@@ -440,7 +450,10 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     setWallSelection(null)
     await replaceWallsForFloorPlan(floorPlan.id, snapshot.vertices, snapshot.walls, snapshot.shapes)
     const updated = await setFloorPlanCalibration(floorPlan.id, snapshot.calibration)
-    if (updated) setFloorPlan(updated)
+    if (updated) {
+      setFloorPlan(updated)
+      onFloorPlanUpdated?.(updated)
+    }
     await reload()
   }
 
@@ -628,7 +641,10 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
         realDistanceMeters: values.size
       }
       const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
-      if (updated) setFloorPlan(updated)
+      if (updated) {
+        setFloorPlan(updated)
+        onFloorPlanUpdated?.(updated)
+      }
     } else if (sizeProvided && floorPlan.calibration) {
       const ppm = getPixelsPerMeter(floorPlan)
       if (ppm) {
