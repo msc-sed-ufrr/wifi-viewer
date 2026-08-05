@@ -234,6 +234,24 @@
     "hintExpanded_other": "({{count}} redes — passe o mouse sobre uma forma para ver detalhes)",
     "pointTitle": "{{label}} · canal {{channel}} · {{widthMhz}} MHz · {{dbm}} dBm"
   },
+  "csvMapping": {
+  "title": "Mapear colunas do CSV",
+  "hint": "O formato do arquivo não foi reconhecido automaticamente. Relacione cada campo necessário à coluna correspondente do arquivo.",
+  "requiredFields": "Campos obrigatórios",
+  "optionalFields": "Campos opcionais",
+  "ssid": "SSID",
+  "bssid": "BSSID",
+  "signalDbm": "Sinal (dBm)",
+  "primaryChannel": "Canal",
+  "security": "Segurança",
+  "standard": "Padrão Wi-Fi",
+  "frequencyMhz": "Frequência (MHz)",
+  "widthMhz": "Largura do canal (MHz)",
+  "capturedAt": "Data e hora",
+  "selectColumn": "Selecione uma coluna",
+  "confirm": "Importar arquivo",
+  "cancel": "Cancelar"
+},
   "canvas": {
     "zoomInTitle": "Aumentar zoom",
     "zoomOutTitle": "Diminuir zoom",
