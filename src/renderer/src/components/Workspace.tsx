@@ -30,6 +30,12 @@ import {
 } from '../modules/readings/network'
 import { getDistanceMeters } from '../modules/readings/distance'
 import { parseImportedCsv } from '../modules/import/parseImportedCsv'
+import { detectCsvFormat } from '../modules/import/csvFormat'
+import {
+  getGenericCsvHeaders,
+  parseGenericCsv,
+  type GenericCsvColumnMapping
+} from '../modules/import/genericCsvParser'
 import { captureLive, isLiveCaptureAvailable } from '../modules/import/liveCapture'
 import { useUiStore } from '../store/uiStore'
 import type { WeightedPoint } from '../modules/heatmap/idw'
@@ -68,6 +74,7 @@ import { Legend } from './Legend'
 import { ChannelChart } from './ChannelChart'
 import { CalibrationDialog } from './CalibrationDialog'
 import { WallMeasureDialog } from './WallMeasureDialog'
+import { CsvColumnMappingDialog } from './CsvColumnMappingDialog'
 import { CloseIcon } from './icons'
 import { WallEditorPanel } from './WallEditorPanel'
 import type { SnapPoint, WallSelection, WallTool } from './WallLayer'
@@ -84,6 +91,12 @@ interface PendingWallMeasure {
   sizeSetsCalibration: boolean
   sizeEditable: boolean
   initialThickness: number
+}
+
+interface PendingGenericCsvImport {
+  content: string
+  headers: string[]
+  pointId: string
 }
 
 interface Props {
@@ -116,6 +129,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
   /** Incrementado ao resolver (confirmar/cancelar) um pendingBulkMove — sinaliza o FloorPlanCanvas a limpar o preview. */
   const [bulkMoveResetSignal, setBulkMoveResetSignal] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [pendingGenericCsvImport, setPendingGenericCsvImport] =
+    useState<PendingGenericCsvImport | null>(null)
 
   // Editor de paredes (ADR-041) — camada independente de vetores, ver WallLayer.tsx.
   const [vertices, setVertices] = useState<WallVertex[]>([])
@@ -290,10 +305,43 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
 
   async function handleImportCsv(file: File): Promise<void> {
     if (!selectedPointId) return
+
     try {
       const text = await file.text()
+
+      if (detectCsvFormat(text) === 'generic') {
+        setPendingGenericCsvImport({
+          content: text,
+          headers: getGenericCsvHeaders(text),
+          pointId: selectedPointId
+        })
+        setError(null)
+        return
+      }
+
       const readings = parseImportedCsv(text)
       await addReadings(selectedPointId, readings)
+      await reload()
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
+    }
+  }
+
+  function handleCancelGenericCsvImport(): void {
+    setPendingGenericCsvImport(null)
+  }
+
+  async function handleConfirmGenericCsvImport(
+    mapping: GenericCsvColumnMapping
+  ): Promise<void> {
+    if (!pendingGenericCsvImport) return
+
+    try {
+      const readings = parseGenericCsv(pendingGenericCsvImport.content, mapping)
+      await addReadings(pendingGenericCsvImport.pointId, readings)
+      setPendingGenericCsvImport(null)
       await reload()
       setError(null)
     } catch (err) {
@@ -788,6 +836,14 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
 
       {pendingCalibrationPoints.length === 2 && (
         <CalibrationDialog onConfirm={handleConfirmCalibrationDialog} onCancel={handleCancelCalibrationDialog} />
+      )}
+
+      {pendingGenericCsvImport && (
+        <CsvColumnMappingDialog
+          headers={pendingGenericCsvImport.headers}
+          onConfirm={handleConfirmGenericCsvImport}
+          onCancel={handleCancelGenericCsvImport}
+        />
       )}
 
       {pendingWallMeasure && (
