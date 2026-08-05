@@ -29,11 +29,11 @@ import {
   type Band
 } from '../modules/readings/network'
 import { getDistanceMeters } from '../modules/readings/distance'
-import { parseWifiScanCsv } from '../modules/import/csvParser'
+import { parseImportedCsv } from '../modules/import/parseImportedCsv'
 import { captureLive, isLiveCaptureAvailable } from '../modules/import/liveCapture'
 import { useUiStore } from '../store/uiStore'
 import type { WeightedPoint } from '../modules/heatmap/idw'
-import type { HeatmapInput } from '../modules/heatmap/useHeatmap'
+import type { HeatmapInput } from '../modules/heatmap/useHeatmap' 
 import { dbmToSigma, distanceToSigmaMeters } from '../modules/heatmap/colorScale'
 import { buildChannelUsage } from '../modules/channels/channelUsage'
 import { getPixelsPerMeter } from '../lib/calibration'
@@ -292,7 +292,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
     if (!selectedPointId) return
     try {
       const text = await file.text()
-      const readings = parseWifiScanCsv(text)
+      const readings = parseImportedCsv(text)
       await addReadings(selectedPointId, readings)
       await reload()
       setError(null)
