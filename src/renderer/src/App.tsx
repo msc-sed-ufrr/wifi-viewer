@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   deleteFloorPlan,
   listFloorPlans,
@@ -7,10 +9,12 @@ import {
   updateFloorPlan,
   updateProject
 } from './modules/projects/api'
+import { upsertFloorPlanInMap } from './modules/projects/floorPlanMap'
 import { createPoint, listPoints, movePoint } from './modules/points/api'
 import { addReadings, listReadingsForFloorPlan } from './modules/readings/api'
 import { buildCsvFilename, exportReadingsToCsv } from './modules/export/csvExporter'
 import { parseConsolidatedCsv, resolveImportedPosition } from './modules/import/consolidatedImport'
+import { CsvImportError } from './modules/import/csvParser'
 import { downloadTextFile } from './lib/downloadFile'
 import { loadImageDimensions, validateFloorPlanImageFile } from './lib/imageDimensions'
 import type { FloorPlan, MeasurementPoint, Project } from './types/domain'
@@ -24,23 +28,33 @@ import { ALL_NETWORKS_KEY } from './modules/readings/network'
 
 type DialogState = { kind: 'new-project' } | { kind: 'new-floor-plan'; project: Project } | null
 
+/** Traduz um erro com chave i18n (`CsvImportError`) ou passa adiante qualquer outra mensagem. */
+function translateError(t: TFunction, err: unknown): string {
+  if (err instanceof CsvImportError) {
+    return t(err.errorKey, err.params ?? {})
+  }
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
 /** Resumo em texto do que resolveImportedPosition fez durante um import (ver ADR-036), pro banner de floorPlanNotice. */
-function describePositionAdjustments(rescaledCount: number, clampedCount: number): string | null {
+function describePositionAdjustments(
+  t: TFunction,
+  rescaledCount: number,
+  clampedCount: number
+): string | null {
   const parts: string[] = []
   if (rescaledCount > 0) {
-    parts.push(
-      `${rescaledCount} ${rescaledCount === 1 ? 'ponto reposicionado' : 'pontos reposicionados'} proporcionalmente (dimensões da planta de origem diferem da atual).`
-    )
+    parts.push(t('importNotice.rescaled', { count: rescaledCount }))
   }
   if (clampedCount > 0) {
-    parts.push(
-      `${clampedCount} ${clampedCount === 1 ? 'ponto ficou' : 'pontos ficaram'} fora dos limites da planta e ${clampedCount === 1 ? 'foi preso' : 'foram presos'} à borda (sem dimensão de origem no CSV pra reescalar corretamente).`
-    )
+    parts.push(t('importNotice.clamped', { count: clampedCount }))
   }
   return parts.length > 0 ? parts.join(' ') : null
 }
 
 export function App(): JSX.Element {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState<Project[]>([])
   const [floorPlansByProject, setFloorPlansByProject] = useState<Map<string, FloorPlan[]>>(new Map())
@@ -94,16 +108,20 @@ export function App(): JSX.Element {
 
   const pendingImageReplaceMessage = pendingImageReplace
     ? [
-        `Substituir a imagem de "${pendingImageReplace.floorPlan.name}"? A nova imagem tem dimensões diferentes` +
-          ` (${pendingImageReplace.floorPlan.imageWidth}×${pendingImageReplace.floorPlan.imageHeight} → ` +
-          `${pendingImageReplace.width}×${pendingImageReplace.height}).`,
+        t('dialog.replaceImage.bodyDimChanged', {
+          name: pendingImageReplace.floorPlan.name,
+          oldW: pendingImageReplace.floorPlan.imageWidth,
+          oldH: pendingImageReplace.floorPlan.imageHeight,
+          newW: pendingImageReplace.width,
+          newH: pendingImageReplace.height,
+          cannot: t('common.cannotBeUndone')
+        }),
         pendingImageReplace.points.length > 0
-          ? `"Reposicionar automaticamente" desloca ${pendingImageReplace.points.length === 1 ? 'o 1 ponto existente' : `os ${pendingImageReplace.points.length} pontos existentes`} proporcionalmente para a nova imagem; "Ajustar imagem manualmente" mantém os pontos parados e deixa você posicionar a imagem nova por baixo deles.`
+          ? t('dialog.replaceImage.repositionHint', { count: pendingImageReplace.points.length })
           : null,
         pendingImageReplace.hadCalibration
-          ? 'Reposicionar automaticamente remove a calibração de escala (recalibre depois); ajustar manualmente preserva a calibração atual.'
-          : null,
-        'Essa ação não pode ser desfeita.'
+          ? t('dialog.replaceImage.calibrationHint')
+          : null
       ]
         .filter((part): part is string => part !== null)
         .join(' ')
@@ -148,7 +166,7 @@ export function App(): JSX.Element {
       floorPlanWidth: floorPlan.imageWidth,
       floorPlanHeight: floorPlan.imageHeight,
       point,
-      label: `Ponto ${index + 1}`,
+      label: t('common.pointN', { n: index + 1 }),
       readings: readingsByPoint.get(point.id) ?? []
     }))
     const csv = exportReadingsToCsv(pointReadings)
@@ -175,7 +193,7 @@ export function App(): JSX.Element {
           floorPlanWidth: floorPlan.imageWidth,
           floorPlanHeight: floorPlan.imageHeight,
           point,
-          label: `Ponto ${index + 1}`,
+          label: t('common.pointN', { n: index + 1 }),
           readings: readingsByPoint.get(point.id) ?? []
         }))
       })
@@ -206,12 +224,12 @@ export function App(): JSX.Element {
         const point = await createPoint(floorPlan.id, x, y)
         await addReadings(point.id, group.readings)
       }
-      setFloorPlanNotice(describePositionAdjustments(rescaledCount, clampedCount))
+      setFloorPlanNotice(describePositionAdjustments(t, rescaledCount, clampedCount))
       if (floorPlan.id === activeFloorPlanId) {
         setWorkspaceReloadNonce((n) => n + 1)
       }
     } catch (error) {
-      setFloorPlanNotice(error instanceof Error ? error.message : String(error))
+      setFloorPlanNotice(translateError(t, error))
     }
   }
 
@@ -251,9 +269,9 @@ export function App(): JSX.Element {
 
       const messages = [
         unmatchedNames.size > 0
-          ? `Plantas não encontradas neste levantamento (linhas ignoradas): ${Array.from(unmatchedNames).join(', ')}`
+          ? t('importNotice.unmatchedFloorPlans', { names: Array.from(unmatchedNames).join(', ') })
           : null,
-        describePositionAdjustments(rescaledCount, clampedCount)
+        describePositionAdjustments(t, rescaledCount, clampedCount)
       ].filter((message): message is string => message !== null)
       setFloorPlanNotice(messages.length > 0 ? messages.join(' ') : null)
 
@@ -261,7 +279,7 @@ export function App(): JSX.Element {
         setWorkspaceReloadNonce((n) => n + 1)
       }
     } catch (error) {
-      setFloorPlanNotice(error instanceof Error ? error.message : String(error))
+      setFloorPlanNotice(translateError(t, error))
     }
   }
 
@@ -270,15 +288,19 @@ export function App(): JSX.Element {
     if (!trimmed || trimmed === floorPlan.name) return
     const updated = await updateFloorPlan(floorPlan.id, trimmed)
     if (!updated) return
-    setFloorPlansByProject((prev) => {
-      const next = new Map(prev)
-      const list = next.get(updated.projectId) ?? []
-      next.set(
-        updated.projectId,
-        list.map((fp) => (fp.id === updated.id ? updated : fp))
-      )
-      return next
-    })
+    setFloorPlansByProject((prev) => upsertFloorPlanInMap(prev, updated))
+  }
+
+  /**
+   * Sincroniza uma planta atualizada que saiu do Workspace (calibração de escala,
+   * medir parede, undo/redo) de volta pro mapa do App. Sem isso, o
+   * `activeFloorPlan` derivado do mapa fica stale — trocar de planta e voltar
+   * sobrescreve a cópia local do Workspace e "perde" a calibração (regressão
+   * do bug da escala). Não bumpa o nonce: o Workspace já tem a planta certa
+   * no estado local, só precisamos refrescar a referência do mapa.
+   */
+  function handleFloorPlanUpdated(updated: FloorPlan): void {
+    setFloorPlansByProject((prev) => upsertFloorPlanInMap(prev, updated))
   }
 
   /**
@@ -341,15 +363,7 @@ export function App(): JSX.Element {
       await movePoint(point.id, x, y)
     }
 
-    setFloorPlansByProject((prev) => {
-      const next = new Map(prev)
-      const list = next.get(updated.projectId) ?? []
-      next.set(
-        updated.projectId,
-        list.map((fp) => (fp.id === updated.id ? updated : fp))
-      )
-      return next
-    })
+    setFloorPlansByProject((prev) => upsertFloorPlanInMap(prev, updated))
 
     if (floorPlan.id === activeFloorPlanId) {
       setWorkspaceReloadNonce((n) => n + 1)
@@ -365,9 +379,9 @@ export function App(): JSX.Element {
    * de clamp aqui (ver ADR-039). A calibração (baseada nos pixels antigos) é descartada.
    */
   async function handleReplaceFloorPlanImage(floorPlan: FloorPlan, file: File): Promise<void> {
-    const validationError = validateFloorPlanImageFile(file)
-    if (validationError) {
-      setFloorPlanNotice(validationError)
+    const validation = validateFloorPlanImageFile(file)
+    if (!validation.ok) {
+      setFloorPlanNotice(t(validation.errorKey))
       return
     }
 
@@ -390,7 +404,8 @@ export function App(): JSX.Element {
 
       setPendingImageReplace({ floorPlan, file, width, height, points, hadCalibration })
     } catch (error) {
-      setFloorPlanNotice(error instanceof Error ? error.message : String(error))
+      const message = error instanceof Error ? error.message : String(error)
+      setFloorPlanNotice(message.startsWith('error.') ? t(message) : message)
     }
   }
 
@@ -405,7 +420,7 @@ export function App(): JSX.Element {
     setPendingImageReplace(null)
     await applyImageReplace(floorPlan, file, width, height, points)
     setFloorPlanNotice(
-      hadCalibration ? 'Calibração de escala removida — as dimensões da planta mudaram, recalibre se necessário.' : null
+      hadCalibration ? t('notice.scaleCalibrationRemoved') : null
     )
   }
 
@@ -423,7 +438,7 @@ export function App(): JSX.Element {
   }
 
   if (loading) {
-    return <div className="app-loading">Carregando…</div>
+    return <div className="app-loading">{t('common.loading')}</div>
   }
 
   if (projects.length === 0) {
@@ -455,13 +470,14 @@ export function App(): JSX.Element {
             key={`${activeFloorPlan.id}:${workspaceReloadNonce}`}
             project={activeProject}
             floorPlan={activeFloorPlan}
+            onFloorPlanUpdated={handleFloorPlanUpdated}
           />
         ) : (
           <div className="app-empty">
-            <p>Este levantamento ainda não tem plantas.</p>
+            <p>{t('emptyState.noFloorPlans')}</p>
             {activeProject && (
               <button type="button" onClick={() => setDialog({ kind: 'new-floor-plan', project: activeProject })}>
-                + Nova planta
+                {t('emptyState.newFloorPlan')}
               </button>
             )}
           </div>
@@ -482,20 +498,20 @@ export function App(): JSX.Element {
       {deletingFloorPlan && (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Excluir planta</h2>
+            <h2>{t('dialog.deleteFloorPlan.title')}</h2>
             <p>
-              Excluir "{deletingFloorPlan.floorPlan.name}"
-              {deletingFloorPlan.pointCount > 0
-                ? ` e ${deletingFloorPlan.pointCount === 1 ? 'seu 1 ponto' : `seus ${deletingFloorPlan.pointCount} pontos`} de medição (com as leituras)`
-                : ''}
-              ? Essa ação não pode ser desfeita.
+              {t('dialog.deleteFloorPlan.body', {
+                name: deletingFloorPlan.floorPlan.name,
+                count: deletingFloorPlan.pointCount,
+                cannot: t('common.cannotBeUndone')
+              })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={() => setDeletingFloorPlan(null)}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmDeleteFloorPlan}>
-                Excluir
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -505,17 +521,17 @@ export function App(): JSX.Element {
       {pendingImageReplace && !alignEditorOpen && (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Substituir imagem</h2>
+            <h2>{t('dialog.replaceImage.title')}</h2>
             <p>{pendingImageReplaceMessage}</p>
             <div className="modal__actions">
               <button type="button" onClick={handleCancelReplaceImage}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" onClick={() => setAlignEditorOpen(true)}>
-                Ajustar imagem manualmente
+                {t('dialog.replaceImage.adjustManually')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmReplaceImage}>
-                Reposicionar automaticamente
+                {t('dialog.replaceImage.repositionAuto')}
               </button>
             </div>
           </div>
@@ -535,7 +551,7 @@ export function App(): JSX.Element {
       {floorPlanNotice && (
         <div className="workspace__error" role="alert">
           {floorPlanNotice}
-          <button type="button" onClick={() => setFloorPlanNotice(null)} aria-label="Fechar erro">
+          <button type="button" onClick={() => setFloorPlanNotice(null)} aria-label={t('common.closeErrorAriaLabel')}>
             ×
           </button>
         </div>

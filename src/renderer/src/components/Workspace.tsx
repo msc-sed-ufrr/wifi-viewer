@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type {
   FloorPlan,
   FloorPlanCalibration,
@@ -28,11 +29,17 @@ import {
   type Band
 } from '../modules/readings/network'
 import { getDistanceMeters } from '../modules/readings/distance'
-import { parseWifiScanCsv } from '../modules/import/csvParser'
+import { parseImportedCsv } from '../modules/import/parseImportedCsv'
+import { detectCsvFormat } from '../modules/import/csvFormat'
+import {
+  getGenericCsvHeaders,
+  parseGenericCsv,
+  type GenericCsvColumnMapping
+} from '../modules/import/genericCsvParser'
 import { captureLive, isLiveCaptureAvailable } from '../modules/import/liveCapture'
 import { useUiStore } from '../store/uiStore'
 import type { WeightedPoint } from '../modules/heatmap/idw'
-import type { HeatmapInput } from '../modules/heatmap/useHeatmap'
+import type { HeatmapInput } from '../modules/heatmap/useHeatmap' 
 import { dbmToSigma, distanceToSigmaMeters } from '../modules/heatmap/colorScale'
 import { buildChannelUsage } from '../modules/channels/channelUsage'
 import { getPixelsPerMeter } from '../lib/calibration'
@@ -67,6 +74,7 @@ import { Legend } from './Legend'
 import { ChannelChart } from './ChannelChart'
 import { CalibrationDialog } from './CalibrationDialog'
 import { WallMeasureDialog } from './WallMeasureDialog'
+import { CsvColumnMappingDialog } from './CsvColumnMappingDialog'
 import { CloseIcon } from './icons'
 import { WallEditorPanel } from './WallEditorPanel'
 import type { SnapPoint, WallSelection, WallTool } from './WallLayer'
@@ -85,15 +93,29 @@ interface PendingWallMeasure {
   initialThickness: number
 }
 
+interface PendingGenericCsvImport {
+  content: string
+  headers: string[]
+  pointId: string
+}
+
 interface Props {
   project: Project
   floorPlan: FloorPlan
+  /**
+   * Sobe a planta atualizada de volta pro App quando uma mutação roda dentro do
+   * Workspace (calibração, medir parede, undo/redo). Sem isso o mapa do App
+   * fica stale e trocar de planta e voltar "perde" a calibração — o App repassa
+   * a referência antiga que sobrescreve a cópia local calibrada.
+   */
+  onFloorPlanUpdated?: (updated: FloorPlan) => void
 }
 
 const MIN_HEATMAP_POINTS = 2
 const DEFAULT_WALL_STROKE_WIDTH = 3
 
-export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.Element {
+export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpdated }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [floorPlan, setFloorPlan] = useState(initialFloorPlan)
   const [points, setPoints] = useState<MeasurementPoint[]>([])
   const [readingsByPoint, setReadingsByPoint] = useState<Map<string, StoredNetworkReading[]>>(new Map())
@@ -107,6 +129,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   /** Incrementado ao resolver (confirmar/cancelar) um pendingBulkMove — sinaliza o FloorPlanCanvas a limpar o preview. */
   const [bulkMoveResetSignal, setBulkMoveResetSignal] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [pendingGenericCsvImport, setPendingGenericCsvImport] =
+    useState<PendingGenericCsvImport | null>(null)
 
   // Editor de paredes (ADR-041) — camada independente de vetores, ver WallLayer.tsx.
   const [vertices, setVertices] = useState<WallVertex[]>([])
@@ -262,11 +286,6 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
   const selectedPoint = points.find((point) => point.id === selectedPointId) ?? null
   const selectedPointIndex = selectedPoint ? points.indexOf(selectedPoint) : -1
 
-  const pendingBulkMoveDistanceMeters =
-    pendingBulkMove && pixelsPerMeter
-      ? Math.hypot(pendingBulkMove.dx, pendingBulkMove.dy) / pixelsPerMeter
-      : null
-
   async function handleCreatePoint(x: number, y: number): Promise<void> {
     const point = await createPoint(floorPlan.id, x, y)
     await reload()
@@ -286,14 +305,48 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
 
   async function handleImportCsv(file: File): Promise<void> {
     if (!selectedPointId) return
+
     try {
       const text = await file.text()
-      const readings = parseWifiScanCsv(text)
+
+      if (detectCsvFormat(text) === 'generic') {
+        setPendingGenericCsvImport({
+          content: text,
+          headers: getGenericCsvHeaders(text),
+          pointId: selectedPointId
+        })
+        setError(null)
+        return
+      }
+
+      const readings = parseImportedCsv(text)
       await addReadings(selectedPointId, readings)
       await reload()
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
+    }
+  }
+
+  function handleCancelGenericCsvImport(): void {
+    setPendingGenericCsvImport(null)
+  }
+
+  async function handleConfirmGenericCsvImport(
+    mapping: GenericCsvColumnMapping
+  ): Promise<void> {
+    if (!pendingGenericCsvImport) return
+
+    try {
+      const readings = parseGenericCsv(pendingGenericCsvImport.content, mapping)
+      await addReadings(pendingGenericCsvImport.pointId, readings)
+      setPendingGenericCsvImport(null)
+      await reload()
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
     }
   }
 
@@ -305,7 +358,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       await reload()
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message.startsWith('error.') ? t(message) : message)
     }
   }
 
@@ -391,7 +445,10 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     pushWallUndoSnapshot()
     const calibration: FloorPlanCalibration = { pointA, pointB, realDistanceMeters }
     const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
-    if (updated) setFloorPlan(updated)
+    if (updated) {
+      setFloorPlan(updated)
+      onFloorPlanUpdated?.(updated)
+    }
   }
 
   /** Clicar na ferramenta já ativa entra/sai do modo de edição de paredes — mesmo comportamento de um app
@@ -441,7 +498,10 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
     setWallSelection(null)
     await replaceWallsForFloorPlan(floorPlan.id, snapshot.vertices, snapshot.walls, snapshot.shapes)
     const updated = await setFloorPlanCalibration(floorPlan.id, snapshot.calibration)
-    if (updated) setFloorPlan(updated)
+    if (updated) {
+      setFloorPlan(updated)
+      onFloorPlanUpdated?.(updated)
+    }
     await reload()
   }
 
@@ -629,7 +689,10 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
         realDistanceMeters: values.size
       }
       const updated = await setFloorPlanCalibration(floorPlan.id, calibration)
-      if (updated) setFloorPlan(updated)
+      if (updated) {
+        setFloorPlan(updated)
+        onFloorPlanUpdated?.(updated)
+      }
     } else if (sizeProvided && floorPlan.calibration) {
       const ppm = getPixelsPerMeter(floorPlan)
       if (ppm) {
@@ -760,22 +823,27 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       />
 
       {placingPoints && !calibrating && !wallEditing && (
-        <p className="workspace__notice">
-          Modo adicionar pontos ligado — clique na planta para criar um ponto de medição. Clique de
-          novo em &quot;Adicionar pontos&quot; para desarmar.
-        </p>
+        <p className="workspace__notice">{t('notice.placingPointsOn')}</p>
       )}
 
       {calibrating && !pendingWallMeasure && pendingCalibrationPoints.length < 2 && (
         <p className="workspace__notice">
           {pendingCalibrationPoints.length === 0
-            ? 'Régua armada — clique numa aresta para Size/Thickness, ou dois pontos na planta para calibrar a escala.'
-            : 'Clique no segundo ponto de referência.'}
+            ? t('notice.rulerArmed')
+            : t('notice.secondCalibrationPoint')}
         </p>
       )}
 
       {pendingCalibrationPoints.length === 2 && (
         <CalibrationDialog onConfirm={handleConfirmCalibrationDialog} onCancel={handleCancelCalibrationDialog} />
+      )}
+
+      {pendingGenericCsvImport && (
+        <CsvColumnMappingDialog
+          headers={pendingGenericCsvImport.headers}
+          onConfirm={handleConfirmGenericCsvImport}
+          onCancel={handleCancelGenericCsvImport}
+        />
       )}
 
       {pendingWallMeasure && (
@@ -794,51 +862,59 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       {confirmingReset && (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Resetar pontos</h2>
+            <h2>{t('dialog.resetPoints.title')}</h2>
             <p>
-              Remover todos os {points.length} pontos desta planta e suas leituras? Essa ação não pode ser
-              desfeita.
+              {t('dialog.resetPoints.body', { count: points.length, cannot: t('common.cannotBeUndone') })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={() => setConfirmingReset(false)}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmReset}>
-                Remover
+                {t('common.remove')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {pendingBulkMove && (
+      {pendingBulkMove && (() => {
+        const pixelsPerMeter = getPixelsPerMeter(floorPlan)
+        const distanceMeters =
+          pixelsPerMeter !== null
+            ? Math.hypot(pendingBulkMove.dx, pendingBulkMove.dy) / pixelsPerMeter
+            : null
+        const distanceText = distanceMeters !== null ? ` em ${distanceMeters.toFixed(1)}m` : ''
+        return (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Mover todos os pontos</h2>
+            <h2>{t('dialog.bulkMove.title')}</h2>
             <p>
-              Deslocar {points.length === 1 ? 'o 1 ponto' : `os ${points.length} pontos`} desta planta
-              {pendingBulkMoveDistanceMeters !== null ? ` em ${pendingBulkMoveDistanceMeters.toFixed(1)}m` : ''}?
-              Essa ação não pode ser desfeita.
+              {t('dialog.bulkMove.body', {
+                count: points.length,
+                distance: distanceText,
+                cannot: t('common.cannotBeUndone')
+              })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={handleCancelBulkMove}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmBulkMove}>
-                Mover
+                {t('common.move')}
               </button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {!isAllNetworks &&
         selectedNetworkKey &&
         heatmapPoints.length > 0 &&
         heatmapPoints.length < MIN_HEATMAP_POINTS && (
           <p className="workspace__notice">
-            Apenas {heatmapPoints.length} ponto com essa rede — adicione ao menos {MIN_HEATMAP_POINTS}{' '}
-            pontos para um heatmap mais confiável.
+            {t('notice.heatmapTooFewPoints', { count: heatmapPoints.length, min: MIN_HEATMAP_POINTS })}
           </p>
         )}
 
@@ -930,19 +1006,19 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       {confirmingDeleteVertex && (
         <div className="modal-overlay">
           <div className="modal">
-            <h2>Excluir vértice</h2>
+            <h2>{t('dialog.deleteVertex.title')}</h2>
             <p>
-              Este vértice é usado por{' '}
-              {confirmingDeleteVertex.wallCount === 1 ? '1 parede' : `${confirmingDeleteVertex.wallCount} paredes`}.
-              Excluí-lo remove {confirmingDeleteVertex.wallCount === 1 ? 'essa parede também' : 'essas paredes também'}.
-              Essa ação não pode ser desfeita.
+              {t('dialog.deleteVertex.body', {
+                count: confirmingDeleteVertex.wallCount,
+                cannot: t('common.cannotBeUndone')
+              })}
             </p>
             <div className="modal__actions">
               <button type="button" onClick={handleCancelDeleteVertex}>
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button type="button" className="modal__button--danger" onClick={handleConfirmDeleteVertex}>
-                Excluir
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -954,7 +1030,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan }: Props): JSX.
       {error && (
         <div className="workspace__error" role="alert">
           {error}
-          <button type="button" onClick={() => setError(null)} aria-label="Fechar erro">
+          <button type="button" onClick={() => setError(null)} aria-label={t('common.closeErrorAriaLabel')}>
             <CloseIcon width={16} height={16} />
           </button>
         </div>

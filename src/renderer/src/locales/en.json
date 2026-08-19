@@ -1,0 +1,268 @@
+{
+  "toolbar": {
+    "network": "Network",
+    "selectNetwork": "Select a network…",
+    "allNetworks": "All networks",
+    "band": "Band",
+    "allBands": "All",
+    "language": "Language",
+    "addPoints": "Add points",
+    "addPointsOn": "Add points: on",
+    "resetPoints": "Reset points",
+    "lightTheme": "Light theme",
+    "darkTheme": "Dark theme",
+    "theme": "Theme",
+    "preferences": "Preferences",
+    "enablePointCreation": "Enable point creation — empty clicks on the floor plan will create measurements",
+    "disablePointCreation": "Disable point creation — empty clicks on the floor plan will no longer create measurements"
+  },
+  "language": {
+    "portuguese": "Portuguese",
+    "english": "English"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "remove": "Remove",
+    "move": "Move",
+    "create": "Create",
+    "creating": "Creating…",
+    "loading": "Loading…",
+    "cannotBeUndone": "This action cannot be undone.",
+    "closeAriaLabel": "Close",
+    "closeErrorAriaLabel": "Close error",
+    "defaultProjectName": "My survey",
+    "defaultFloorPlanName": "Floor plan 1",
+    "pointN": "Point {{n}}"
+  },
+  "sidebar": {
+    "surveys": "Surveys",
+    "newSurveyTitle": "New survey",
+    "collapseTitle": "Collapse",
+    "expandSurveysTitle": "Expand surveys",
+    "moreOptionsTitle": "More options",
+    "rename": "Rename",
+    "import": "Import",
+    "export": "Export",
+    "replaceImage": "Replace image",
+    "deleteFloorPlan": "Delete floor plan",
+    "newFloorPlan": "New floor plan"
+  },
+  "emptyState": {
+    "noFloorPlans": "This survey has no floor plans yet.",
+    "newFloorPlan": "+ New floor plan"
+  },
+  "dialog": {
+    "deleteFloorPlan": {
+      "title": "Delete floor plan",
+      "body_zero": "Delete \"{{name}}\"? {{cannot}}",
+      "body_one": "Delete \"{{name}}\"? This will also remove its 1 measurement point (with its readings). {{cannot}}",
+      "body_other": "Delete \"{{name}}\"? This will also remove its {{count}} measurement points (with their readings). {{cannot}}"
+    },
+    "replaceImage": {
+      "title": "Replace image",
+      "bodyDimChanged": "Replace the image of \"{{name}}\"? The new image has different dimensions ({{oldW}}×{{oldH}} → {{newW}}×{{newH}}). {{cannot}}",
+      "repositionHint_one": "\"Auto-reposition\" moves the 1 existing point proportionally to the new image; \"Adjust image manually\" keeps the points in place and lets you position the new image underneath them.",
+      "repositionHint_other": "\"Auto-reposition\" moves the {{count}} existing points proportionally to the new image; \"Adjust image manually\" keeps the points in place and lets you position the new image underneath them.",
+      "calibrationHint": "Auto-reposition removes the scale calibration (recalibrate later); manual adjustment preserves the current calibration.",
+      "adjustManually": "Adjust image manually",
+      "repositionAuto": "Auto-reposition"
+    },
+    "alignEditor": {
+      "title": "Adjust image manually",
+      "hint": "Drag the image to position it and use +/− to adjust the size until it matches the existing points (shown below). The points don't move."
+    },
+    "resetPoints": {
+      "title": "Reset points",
+      "body_one": "Remove the 1 point on this floor plan and its readings? {{cannot}}",
+      "body_other": "Remove all {{count}} points on this floor plan and their readings? {{cannot}}"
+    },
+    "bulkMove": {
+      "title": "Move all points",
+      "body_one": "Move the 1 point on this floor plan{{distance}}? {{cannot}}",
+      "body_other": "Move the {{count}} points on this floor plan{{distance}}? {{cannot}}"
+    },
+    "deleteVertex": {
+      "title": "Delete vertex",
+      "body_one": "This vertex is used by 1 wall. Deleting it will also remove that wall. {{cannot}}",
+      "body_other": "This vertex is used by {{count}} walls. Deleting it will also remove those walls. {{cannot}}"
+    },
+    "calibrate": {
+      "title": "Calibrate scale",
+      "distanceLabel": "Real distance between the two clicked points (in meters)"
+    },
+    "newFloorPlan": {
+      "title": "New survey",
+      "titleForProject": "New floor plan in \"{{name}}\"",
+      "projectNameLabel": "Survey name",
+      "projectNamePlaceholder": "e.g.: CIT Building",
+      "floorPlanNameLabel": "Floor plan name",
+      "floorPlanNamePlaceholder": "e.g.: Ground floor",
+      "imageLabel": "Floor plan image (optional)",
+      "blankImageHint": "Without an image, the floor plan is born blank (~40 m × 30 m, pre-calibrated) for drawing the terrain edges.",
+      "previewAlt": "Floor plan preview",
+      "removeImage": "Remove image",
+      "csvLabel": "Readings (CSV, optional)",
+      "csvHint": "Re-creates the points from a consolidated CSV (exported per floor plan or per survey) — positions only make sense if the image above matches the original export (image required).",
+      "csvSummary_one": "{{file}}: 1 point found ({{count}} reading)",
+      "csvSummary_other": "{{file}}: {{count}} points found ({{readings}} readings)",
+      "rescaledHint_one": "1 point will be repositioned proportionally — the source floor plan has different dimensions than the image chosen above.",
+      "rescaledHint_other": "{{count}} points will be repositioned proportionally — the source floor plan has different dimensions than the image chosen above.",
+      "clampedHint_one": "1 point falls outside the limits of the chosen image and will be clamped to the edge — visible, but in the wrong position. Swap the image above for the original export (or one with the same dimensions) to fix it, or continue and adjust positions manually later.",
+      "clampedHint_other": "{{count}} points fall outside the limits of the chosen image and will be clamped to the edge — visible, but in the wrong position. Swap the image above for the original export (or one with the same dimensions) to fix it, or continue and adjust positions manually later.",
+      "removeCsv": "Remove CSV"
+    },
+    "wallMeasure": {
+      "title": "Edge",
+      "sizeLabelCalibrate": "Size — real length of this edge (m), defines the floor plan scale",
+      "sizeLabelM": "Size — length (m)",
+      "sizeLabelPx": "Size — length (image px)",
+      "thicknessLabelGroup_one": "Thickness — stroke width (px), applied to the 1 edge in the group",
+      "thicknessLabelGroup_other": "Thickness — stroke width (px), applied to the {{count}} edges in the group",
+      "thicknessLabelSingle": "Thickness — stroke width (px)",
+      "sizePlaceholder": "e.g.: 4.5"
+    }
+  },
+  "notice": {
+    "scaleCalibrationRemoved": "Scale calibration removed — the floor plan dimensions changed, recalibrate if necessary.",
+    "placingPointsOn": "Add-points mode on — click on the floor plan to create a measurement point. Click \"Add points\" again to disarm.",
+    "rulerArmed": "Ruler armed — click an edge for Size/Thickness, or two points on the floor plan to calibrate the scale.",
+    "secondCalibrationPoint": "Click the second reference point.",
+    "heatmapTooFewPoints_one": "Only 1 point with this network — add at least {{min}} points for a more reliable heatmap.",
+    "heatmapTooFewPoints_other": "Only {{count}} points with this network — add at least {{min}} points for a more reliable heatmap."
+  },
+  "importNotice": {
+    "rescaled_one": "1 point repositioned proportionally (source floor plan dimensions differ from current).",
+    "rescaled_other": "{{count}} points repositioned proportionally (source floor plan dimensions differ from current).",
+    "clamped_one": "1 point fell outside the floor plan limits and was clamped to the edge (no source dimensions in the CSV to rescale correctly).",
+    "clamped_other": "{{count}} points fell outside the floor plan limits and were clamped to the edge (no source dimensions in the CSV to rescale correctly).",
+    "unmatchedFloorPlans": "Floor plans not found in this survey (lines ignored): {{names}}"
+  },
+  "error": {
+    "calibrationPositiveNumber": "Enter a number greater than zero.",
+    "csvRequiresImage": "Import a floor plan image before loading the readings CSV (positions depend on it).",
+    "wallSizeMeters": "Enter a length greater than zero (meters), or leave blank to only change the thickness.",
+    "wallSizePx": "Enter a length greater than zero (px), or leave blank to only change the thickness.",
+    "wallThicknessRange": "Thickness must be an integer between 1 and 30.",
+    "floorPlanImageInvalid": "Invalid image file.",
+    "floorPlanImageRead": "Could not read the image.",
+    "csvEmpty": "Empty file.",
+    "csvHeaderMismatch": "Header does not match the reference format.\nExpected: {{expected}}\nFound: {{found}}",
+    "csvRowColumns": "Line {{line}}: expected at least {{expected}} columns, found {{found}}.",
+    "csvRowError": "Line {{line}}: {{reason}}",
+    "csvConsolidatedHeader": "Header is missing the point-location columns ({{cols}}) — use a CSV exported by this tool.\nExpected: {{expected}} (optionally followed by {{extra}})\nFound: {{found}}",
+    "csvInvalidPointPosition": "Line {{line}}: invalid point position (x=\"{{x}}\", y=\"{{y}}\").",
+    "csvInvalidDimensions": "Line {{line}}: invalid source floor-plan dimensions (width=\"{{width}}\", height=\"{{height}}\").",
+    "csvTimestampFormat": "Unexpected timestamp format: \"{{value}}\"",
+    "csvStrengthInvalid": "Invalid signal strength: \"{{value}}\"",
+    "csvChannelInvalid": "Invalid channel: \"{{value}}\"",
+    "liveCaptureUnavailable": "Live capture unavailable: preload not loaded.",
+    "blankFloorPlanCreate": "Could not create the blank floor plan."
+  },
+  "pointPanel": {
+    "pointTitle": "Point {{n}}",
+    "liveCapture": "Live capture",
+    "liveCaptureUnavailable": "Live capture is not available on this system — use file import.",
+    "importScanFile": "Import scan file",
+    "exportCsv": "Export CSV",
+    "deletePoint": "Remove point",
+    "readingsTitle_one": "Readings (1)",
+    "readingsTitle_other": "Readings ({{count}})",
+    "noReadings": "No readings yet for this point.",
+    "hiddenSsid": "(hidden)",
+    "channelHeader": "Channel",
+    "distanceHeader": "Distance",
+    "securityHeader": "Security"
+  },
+  "reading": {
+    "distanceEstimated": "~{{distance}} m (estimated)",
+    "distance": "{{distance}} m"
+  },
+  "projectSetup": {
+    "title": "New survey",
+    "hint": "Create a survey. The floor plan image is optional — without one, a blank area is born (~40 m × 30 m) for drawing edges.",
+    "submit": "Create survey"
+  },
+  "wallEditor": {
+    "toolbarAriaLabel": "Wall layers and tools",
+    "layersTitle": "Layers — visibility for heatmap, measurements, image and objects",
+    "layersAriaLabel": "Layers",
+    "layersDropdownAriaLabel": "Layer visibility",
+    "layerHeatmap": "Heatmap",
+    "layerMeasurements": "Measurements",
+    "layerImage": "Image",
+    "layerObjects": "Objects",
+    "moveToolTitle": "Move objects — select and drag vertices, walls or shapes",
+    "moveToolAriaLabel": "Move objects",
+    "drawLineToolTitle": "Draw lines — click by click, segments chain together",
+    "drawLineToolAriaLabel": "Draw lines",
+    "rectToolTitle": "Rectangle — drag corner to corner; Shift = square",
+    "rectToolAriaLabel": "Rectangle",
+    "circleToolTitle": "Circle — drag from center to edge",
+    "circleToolAriaLabel": "Circle",
+    "arcToolTitle": "Arc — 3 clicks: start, end, curvature",
+    "arcToolAriaLabel": "Arc",
+    "rulerTitle": "Ruler — click on edge: Size/Thickness; click on floor plan: calibrate scale",
+    "rulerCancelTitle": "Cancel ruler — click on edge measures Size/Thickness; click on floor plan calibrates scale",
+    "rulerAriaLabel": "Ruler / calibrate scale",
+    "rulerCancelAriaLabel": "Cancel ruler",
+    "deleteSelectionTitle": "Delete selection",
+    "deleteSelectionAriaLabel": "Delete selection",
+    "undoTitle": "Undo ({{shortcut}})",
+    "undoAriaLabel": "Undo ({{shortcut}})",
+    "redoTitle": "Redo ({{shortcut}})",
+    "redoAriaLabel": "Redo ({{shortcut}})",
+    "strokeWidthTitle": "Width of all edges (px)",
+    "strokeWidthSrOnly": "Width of all edges",
+    "decreaseStrokeAriaLabel": "Decrease width",
+    "decreaseTitle": "Decrease",
+    "strokeInputAriaLabel": "Stroke width of all walls",
+    "increaseStrokeAriaLabel": "Increase width",
+    "increaseTitle": "Increase"
+  },
+  "legend": {
+    "expand": "Click to expand",
+    "collapse": "Click to collapse"
+  },
+  "channelChart": {
+    "title": "Channel distribution",
+    "ariaLabel": "Network distribution across {{band}} channels",
+    "hint_one": "(1 network)",
+    "hint_other": "({{count}} networks)",
+    "hintExpanded_one": "(1 network — hover over a shape to see details)",
+    "hintExpanded_other": "({{count}} networks — hover over a shape to see details)",
+    "pointTitle": "{{label}} · channel {{channel}} · {{widthMhz}} MHz · {{dbm}} dBm"
+  },
+  "csvMapping": {
+  "title": "Map CSV columns",
+  "hint": "The file format was not recognized automatically. Match each required field to the corresponding column in the file.",
+  "requiredFields": "Required fields",
+  "optionalFields": "Optional fields",
+  "ssid": "SSID",
+  "bssid": "BSSID",
+  "signalDbm": "Signal (dBm)",
+  "primaryChannel": "Channel",
+  "security": "Security",
+  "standard": "Wi-Fi standard",
+  "frequencyMhz": "Frequency (MHz)",
+  "widthMhz": "Channel width (MHz)",
+  "capturedAt": "Date and time",
+  "selectColumn": "Select a column",
+  "confirm": "Import file",
+  "cancel": "Cancel"
+},
+  "canvas": {
+    "zoomInTitle": "Zoom in",
+    "zoomOutTitle": "Zoom out",
+    "zoomResetTitle": "Reset to 100%"
+  },
+  "tooltip": {
+    "pointTitle": "Point {{n}}",
+    "rssi": "RSSI: {{dbm}} dBm",
+    "noise": "Noise: {{dbm}} dBm",
+    "snr": "SNR: {{db}} dB",
+    "channel": "Channel: {{channel}}",
+    "widthMhz": "Width: {{mhz}} MHz"
+  }
+}

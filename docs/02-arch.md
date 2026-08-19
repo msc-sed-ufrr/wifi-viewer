@@ -12,7 +12,7 @@ Projeto em fase de POC, funcional de ponta a ponta com o escopo inicial do PRD i
 
 | Serviço      | Runtime                          | Responsabilidade                                                            |
 | ------------- | ---------------------------------- | ------------------------------------------------------------------------------ |
-| `renderer/`   | React + TypeScript + Vite, executado no Chromium do Electron | UI completa: sidebar de levantamentos/plantas, upload e calibração de escala da planta, marcação/edição de pontos, importação de CSV, captura ao vivo via IPC, cálculo e renderização do heatmap (IDW), visão de canais/interferência, persistência local |
+| `renderer/`   | React + TypeScript + Vite, executado no Chromium do Electron | UI completa: sidebar de levantamentos/plantas, upload e calibração de escala da planta, marcação/edição de pontos, importação de CSV, captura ao vivo via IPC, cálculo e renderização do heatmap (IDW), visão de canais/interferência, i18n com `i18next`/`react-i18next` (PT-BR default + EN, persistido em `localStorage`), persistência local |
 | `main/`       | Electron main process (Node.js + TypeScript) | Ciclo de vida da janela/app, execução da varredura Wi-Fi nativa do SO, exposição de API mínima ao renderer via `preload`/IPC |
 | IndexedDB     | Nativo do Chromium (dentro do `renderer/`) | Único armazenamento: projetos, imagens de planta, pontos, leituras            |
 
@@ -34,6 +34,7 @@ flowchart TD
 
     subgraph renderer1["renderer/"]
         UI1["UI: Sidebar, Toolbar,<br/>FloorPlanCanvas, PointPanel"]
+        I18n["i18n.ts<br/>(i18next init +<br/>locales/*.json)"]
         CsvParser["import/csvParser.ts"]
         LiveCapture["import/liveCapture.ts"]
         ProjectsApi["projects/api.ts"]
@@ -63,6 +64,7 @@ flowchart TD
 
     UI1 -->|"cria/move/apaga ponto"| PointsApi
     UI1 -->|"cria/renomeia; calibra"| ProjectsApi
+    UI1 -->|"t('toolbar.*')<br/>(re-render<br/>em changeLanguage)"| I18n
     PointsApi --> Store
     ReadingsApi --> Store
     ProjectsApi --> Store
@@ -120,6 +122,17 @@ Diferente do design original baseado em processo `agent/` separado via HTTP (ver
 6. O renderer recebe a lista via IPC e grava via `readings/api.ts` (`addReadings`), do mesmo jeito que gravaria leituras importadas de um arquivo.
 7. Se o comando falhar em tempo de execução (ex.: permissão negada, `macwifi-cli` desinstalado depois do check inicial), o erro é capturado em `Workspace.handleLiveCapture` e mostrado no banner de erro, sem falhar silenciosamente.
 
+### 3.3 Resolução de idioma (i18n)
+
+O i18n é puramente camada de apresentação do renderer (ver ADR-047) — por isso não aparece no diagrama 3b (geração do heatmap e visão de canais, que é caminho lógico/matemático puro) e nem atravessa IPC/persistência de domínio; o fluxo de resolução de idioma é todo local ao runtime do renderer:
+
+1. `main.tsx` importa `./i18n` antes de montar `<App />` — o `i18n.init()` resolve o `resources` (JSONs de `locales/`) de forma síncrona, sem `<Suspense>` nem flag de "carregando".
+2. Idioma inicial é resolvido em `detectInitialLanguage()` (`i18n.ts`): primeiro `localStorage[LANGUAGE_STORAGE_KEY]` (`'wifi-viewer-language'`) se o valor for `'pt-BR'` ou `'en'`; senão, `navigator.language.toLowerCase().startsWith('pt')` → `'pt-BR'`; senão `'en'`.
+3. Componentes consomem via `useTranslation()` e `t('namespace.key')`; a troca de idioma pelo `<select id="language-select">` na `Toolbar` dispara `i18n.changeLanguage(lang)`, que re-renderiza toda a árvore via Context interno do `react-i18next` — sem reload da página.
+4. Um listener `i18n.on('languageChanged', …)` (`i18n.ts`) persiste a escolha do usuário na mesma chave do `localStorage` na hora, valendo para execuções futuras.
+5. `fallbackLng: 'en'` — qualquer chave ausente em PT-BR/EN cai em inglês (idioma de trabalho do projeto, segundo o histórico de commits).
+6. Nenhum dado de domínio (projeto/planta/ponto/leitura) carrega informação de locale; troca de idioma é puramente camada de apresentação e não reinicia o app.
+
 ---
 
 ## 4. Domain Modules
@@ -163,6 +176,7 @@ Dado o escopo de ferramenta pessoal, single-user e sem backend remoto, não há 
 - **`idb`** — wrapper tipado sobre IndexedDB para persistência de projetos, imagens de planta (blobs), pontos e leituras.
 - **Parser próprio** (`import/csvParser.ts`, sem dependência externa) — leitura do arquivo de scan delimitado (formato de referência descrito no PRD, regra de negócio "Importação de dados") em linhas tipadas; `papaparse` nunca chegou a ser usado na prática.
 - **Zustand** (`store/uiStore.ts`) — só o estado de UI verdadeiramente global (ponto selecionado, rede selecionada). Estado de tela (zoom, pan, calibração pendente, sidebar colapsada, legenda expandida) fica em `useState` local do próprio componente, não centralizado no store.
+- **`i18next` + `react-i18next`** (`i18next ^26.3.6`, `react-i18next ^17.0.11`) — runtime de internacionalização no renderer; locales em `src/renderer/src/locales/<lang>.json` (PT-BR default + EN), detecção via `localStorage`/`navigator.language`, persistência da escolha em `localStorage`; ver ADR-047.
 - **SVG nativo** (sem lib externa) — gráfico de distribuição de canais (`channels/channelUsage.ts` + componente de visualização).
 
 ### `main/` (Electron main process, Node.js + TypeScript)
@@ -202,6 +216,7 @@ Cada leitura normalizada carrega um campo `signalSource: "measured" | "estimated
 - Timestamps armazenados em ISO 8601 UTC; formatação de exibição é responsabilidade da camada de apresentação.
 - Importação de arquivo de scan é estrita: contagem/ordem de colunas fora do formato de referência é rejeitada com erro explícito, sem tentativa de adivinhação heurística.
 - Testes com Vitest, sem Testing Library nem testes de componente/DOM ainda — cobertura hoje é 100% lógica pura: `heatmap` (`idw.test.ts`, `colorScale.test.ts`), `import` (`csvParser.test.ts`), `channels` (`channelUsage.test.ts`), `readings` (`distance.test.ts`, `network.test.ts`) e o parser macOS do `wifiScan` (`macos.test.ts`).
+- Strings de UI residem em `src/renderer/src/locales/<lang>.json`; nunca hardcoded em componentes (`t('namespace.key')` via `useTranslation`). Locale persiste em `localStorage` (`wifi-viewer-language`), não no schema de projeto.
 
 ---
 
@@ -655,5 +670,15 @@ O projeto passou a ter `CLAUDE.md` e `AGENTS.md` (guia de contexto/contribuiçã
 **Motivo:** paramétrico devolve a circle/arc a propriedade de serem editáveis como tais (handle de raio, 3 pontos do arco), sem os dezenas de vértices do modelo tesselado. Escopo cirúrgico: só circle/arc — retângulo e desenhos livres inalterados, polígonos antigos não migrados (usuário pode apagar e redesenhar). `groupId` (ADR-045) e `WallShape` (aqui) convivem como dois modelos mentais distintos, separados pela seleção (`kind:'group'` vs `kind:'shape'`); circle/arc novos nunca recebem `groupId`.
 
 **Consequência:** círculos/arcos antigos (tesselados) continuam "feios" no modo Selecionar (colar de pontos) — aceito, sem migração. Arco colinear vira reta no path, mas os handles p1/p2/pMid seguem editáveis pra "levantar" a curvatura. Clamp na borda da imagem pode encolher o raio de um círculo (center fixo, edge clampa) — mesma filosofia de `moveWall`. Path SVG já é o visual oficial (export/imagem futuro parte dele). 19 casos novos em `shapes.test.ts` (41 total no arquivo): `arcPathD` (endpoints, colinear→linha, large-arc, bulge oposto), `translateShape` (círculo/arco rígidos, clamp preserva raio), `updateCircleEdge`/`updateArcHandle` (rejeição degenerada, clamp). `npm run typecheck && npm test`: 175/175 (156 anteriores + 19 novos). Verificação ao vivo das interações (círculo novo = 1 handle de raio + corpo movível, arco 3 handles, retângulo/linhas livres inalterados, polígono antigo ainda grupo, undo/redo, reload persiste DB v3) registrada após confirmação na UI.
+
+### ADR-047 — Internacionalização (i18n) inicial: `i18next` + `react-i18next`, dois locales, persistência em `localStorage`
+
+**Contexto:** o app é PT-BR em quase toda a UI desde o início (sidebar, modais, painel de ponto, legenda, erros, banners seguem hardcoded em PT-BR no código); alguns commits e comentários são em PT, outros em EN, e o `CHANGELOG`/mensagens de commit alternam entre os dois idiomas sem política definida. Conversa com o usuário definiu PT-BR ↔ EN como o par de locales inicial — sem outros planejados no momento. A stack do renderer já é React 18 + TypeScript strict, então qualquer biblioteca de i18n encaixa sem mudança de paradigma. O locale precisa persistir entre execuções (não só na sessão atual) — o usuário não quer ter que re-selecionar o idioma toda vez que abre o app.
+
+**Decisão:** biblioteca é `i18next` + `react-i18next` (padrão de mercado em React, integração direta com `useTranslation` e suporte a persistência via eventos). Idiomas suportados nesta primeira entrega: `'pt-BR'` (default, atual) e `'en'`. Arquivos de tradução ficam em `src/renderer/src/locales/<lang>.json` com namespace único `translation` e chaves aninhadas por seção (hoje apenas `toolbar.*`, espelhando a estrutura do componente). Init em `src/renderer/src/i18n.ts` é importado lado a lado com o CSS no `main.tsx` — sem `<Suspense>` ou flag de "carregando", porque o bundle dos JSONs é pequeno o suficiente pra resolver de forma síncrona no `i18n.init()`. Detecção de idioma inicial fica em `detectInitialLanguage()`: lê `localStorage[LANGUAGE_STORAGE_KEY]` (`'wifi-viewer-language'`) e, se for `'pt-BR'` ou `'en'`, usa direto; senão, verifica `navigator.language.toLowerCase().startsWith('pt')` → `'pt-BR'`, com fallback final em `'en'`. Persistência da escolha do usuário é feita por um listener `i18n.on('languageChanged', …)` que grava o idioma atual na mesma chave do `localStorage`. `fallbackLng: 'en'` cobre qualquer chave ausente, e `interpolation.escapeValue: false` aproveita o escape nativo do React (não há conteúdo HTML embutido nas strings atuais). Componentes consomem via `useTranslation()` e `t('namespace.key')`; a troca de idioma dispara re-render via Context interno do `react-i18next`, sem reload da página. O seletor de idioma é exposto na própria `Toolbar` (mesmo lugar onde ficam rede/banda), através de um `<select id="language-select">` posicionado entre os selects de rede/banda e o grupo de botões à direita, com fallback de `i18n.resolvedLanguage ?? i18n.language` no value — porque é configuração de sessão/UI, não de domínio, e não justifica um painel próprio.
+
+**Motivo:** `i18next` é o padrão de facto em React — qualquer escolha diferente (`react-intl`, `Lingui`, `typesafe-i18n`) exigiria justificativa explícita contra o consenso. Persistir em `localStorage` (e não no IndexedDB) evita mexer no schema v3 das stores de domínio: locale é configuração de UI, não dado de projeto, e os ADR-001/ADR-007 já estabelecem que persistência de UI vai por APIs do Chromium (`localStorage`, preferências do Electron). Usar `navigator.language` como fallback padrão cobre o usuário novo sem forçar uma escolha inicial; a checagem `.startsWith('pt')` agrupa variantes PT (pt-BR, pt-PT, pt-AO, etc.) como `'pt-BR'` — perda de precisão aceitável dado que só temos dois locales hoje, e adiciona-se de volta caso entre um terceiro idioma PT específico. `fallbackLng: 'en'` em vez de `'pt-BR'` faz com que traduções pendentes apareçam em inglês (idioma de trabalho da ferramenta, segundo o histórico de commits), em vez de ficar em PT-BR "por padrão" — alinhado ao uso real do projeto.
+
+**Consequência:** estado atual: apenas a `Toolbar` está internacionalizada a partir do commit `6f08505`; o resto da UI (sidebar, modais, painel de ponto, legenda, erros, banners) continua PT-BR hardcoded — internacionalizar o restante é trabalho incremental, não bloqueado por esta decisão. Adicionar uma nova string traduzida: criar a chave nos dois JSON (`pt-BR.json` e `en.json`) e usar `t('namespace.key')` no componente, sem reinicializar o i18next. Adicionar um terceiro locale (ex.: `'es'`, `'fr'`): criar `locales/<lang>.json`, registrar no objeto `resources` e atualizar o tipo de retorno de `detectInitialLanguage()` em `i18n.ts`, e adicionar um `<option>` no `<select>` da `Toolbar`. Locale NÃO é persistido por projeto (single-user, single-instalação): trocar o idioma afeta toda a UI imediatamente, sem reload. Não há testes automatizados do i18n hoje — a verificação é por inspeção visual (alternar o seletor e confirmar que as strings do namespace mudam); aceitável pelo volume atual (14 chaves em 2 arquivos) e pelo risco baixo de regressão (chave ausente aparece imediatamente na UI via fallback). Os JSONs não são lazy-loaded — vão bundled no renderer; se a base de strings crescer dezenas de vezes, considerar carregar sob demanda. Não há impacto no IndexedDB, no IPC, no processo `main` ou em qualquer camada fora do renderer.
 
 

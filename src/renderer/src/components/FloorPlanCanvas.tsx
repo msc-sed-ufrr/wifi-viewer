@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { FloorPlan, MeasurementPoint, StoredNetworkReading } from '../types/domain'
 import { useHeatmap, type HeatmapInput } from '../modules/heatmap/useHeatmap'
 import { getNetworkGroup } from '../modules/readings/network'
@@ -127,6 +128,7 @@ export function FloorPlanCanvas({
   showImage,
   wallEditor
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -729,22 +731,22 @@ export function FloorPlanCanvas({
                   top: `${(hoveredPoint.y / floorPlan.imageHeight) * 100}%`
                 }}
               >
-                <div className="point-tooltip__title">Ponto {hoveredIndex + 1}</div>
+                <div className="point-tooltip__title">{t('tooltip.pointTitle', { n: hoveredIndex + 1 })}</div>
                 <div className="point-tooltip__group point-tooltip__network">
                   {getNetworkGroup(hoveredReading).label}
                 </div>
                 <div className="point-tooltip__group">
-                  <div>RSSI: {hoveredReading.signalDbm} dBm</div>
+                  <div>{t('tooltip.rssi', { dbm: hoveredReading.signalDbm })}</div>
                   {hoveredReading.noise !== undefined && hoveredReading.noise !== 0 && (
                     <>
-                      <div>Noise: {hoveredReading.noise} dBm</div>
-                      <div>SNR: {hoveredReading.signalDbm - hoveredReading.noise} dB</div>
+                      <div>{t('tooltip.noise', { dbm: hoveredReading.noise })}</div>
+                      <div>{t('tooltip.snr', { db: hoveredReading.signalDbm - hoveredReading.noise })}</div>
                     </>
                   )}
                 </div>
-                <div className="point-tooltip__group">Canal: {hoveredReading.primaryChannel}</div>
+                <div className="point-tooltip__group">{t('tooltip.channel', { channel: hoveredReading.primaryChannel })}</div>
                 {hoveredReading.widthMhz !== undefined && (
-                  <div className="point-tooltip__group">Largura: {hoveredReading.widthMhz} MHz</div>
+                  <div className="point-tooltip__group">{t('tooltip.widthMhz', { mhz: hoveredReading.widthMhz })}</div>
                 )}
                 {hoveredReading.standard && <div className="point-tooltip__group">{hoveredReading.standard}</div>}
               </div>
@@ -754,13 +756,13 @@ export function FloorPlanCanvas({
       </div>
 
       <div className="zoom-controls">
-        <button type="button" onClick={handleZoomOut} disabled={zoom <= MIN_ZOOM} title="Diminuir zoom">
+        <button type="button" onClick={handleZoomOut} disabled={zoom <= MIN_ZOOM} title={t('canvas.zoomOutTitle')}>
           <ZoomOutIcon width={18} height={18} />
         </button>
-        <button type="button" className="zoom-controls__level" onClick={handleZoomReset} title="Restaurar 100%">
+        <button type="button" className="zoom-controls__level" onClick={handleZoomReset} title={t('canvas.zoomResetTitle')}>
           {Math.round(zoom * 100)}%
         </button>
-        <button type="button" onClick={handleZoomIn} disabled={zoom >= MAX_ZOOM} title="Aumentar zoom">
+        <button type="button" onClick={handleZoomIn} disabled={zoom >= MAX_ZOOM} title={t('canvas.zoomInTitle')}>
           <ZoomInIcon width={18} height={18} />
         </button>
       </div>

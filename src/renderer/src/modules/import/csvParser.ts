@@ -32,11 +32,30 @@ export const POINT_LOCATION_HEADER = ['Floor Plan', 'Point Label', 'Point X', 'P
  */
 export const FLOOR_PLAN_DIMENSION_HEADER = ['Floor Plan Width', 'Floor Plan Height']
 
-export class CsvImportError extends Error {}
+/**
+ * Erro carregando uma chave i18n (`errorKey`) + parâmetros pra interpolação.
+ * O caller (componente React) traduz com `t(errorKey, params)` antes de exibir;
+ * `lib/` permanece agnóstico ao i18next.
+ */
+export class CsvImportError extends Error {
+  constructor(
+    message: string,
+    public readonly errorKey: string,
+    public readonly params?: Record<string, string | number>
+  ) {
+    super(message)
+  }
+}
 
 function parseTimestamp(raw: string): string {
   const match = raw.trim().match(/^(\d{4})\/(\d{2})\/(\d{2})-(\d{2}):(\d{2}):(\d{2})$/)
-  if (!match) throw new CsvImportError(`Timestamp em formato inesperado: "${raw}"`)
+  if (!match) {
+    throw new CsvImportError(
+      `Timestamp em formato inesperado: "${raw}"`,
+      'error.csvTimestampFormat',
+      { value: raw }
+    )
+  }
   const [, year, month, day, hour, minute, second] = match
   const date = new Date(
     Number(year),
@@ -51,13 +70,21 @@ function parseTimestamp(raw: string): string {
 
 function parseStrengthDbm(raw: string): number {
   const value = Number(raw.trim().replace(/dBm$/i, ''))
-  if (!Number.isFinite(value)) throw new CsvImportError(`Força de sinal inválida: "${raw}"`)
+  if (!Number.isFinite(value)) {
+    throw new CsvImportError(
+      `Força de sinal inválida: "${raw}"`,
+      'error.csvStrengthInvalid',
+      { value: raw }
+    )
+  }
   return value
 }
 
 function parseChannel(raw: string): number {
   const value = Number(raw.trim())
-  if (!Number.isFinite(value)) throw new CsvImportError(`Canal inválido: "${raw}"`)
+  if (!Number.isFinite(value)) {
+    throw new CsvImportError(`Canal inválido: "${raw}"`, 'error.csvChannelInvalid', { value: raw })
+  }
   return value
 }
 
@@ -114,7 +141,7 @@ export function parseRow(cells: string[]): NetworkReading {
 export function parseWifiScanCsv(content: string): NetworkReading[] {
   const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0)
   if (lines.length === 0) {
-    throw new CsvImportError('Arquivo vazio.')
+    throw new CsvImportError('Arquivo vazio.', 'error.csvEmpty')
   }
 
   const header = lines[0].split('|').map((cell) => cell.trim())
@@ -124,7 +151,9 @@ export function parseWifiScanCsv(content: string): NetworkReading[] {
     REFERENCE_HEADER.every((cell, i) => header[i] === cell)
   if (!headerMatches) {
     throw new CsvImportError(
-      `Cabeçalho não corresponde ao formato de referência.\nEsperado: ${REFERENCE_HEADER.join('|')}\nEncontrado: ${lines[0]}`
+      `Cabeçalho não corresponde ao formato de referência.\nEsperado: ${REFERENCE_HEADER.join('|')}\nEncontrado: ${lines[0]}`,
+      'error.csvHeaderMismatch',
+      { expected: REFERENCE_HEADER.join('|'), found: lines[0] }
     )
   }
 
@@ -134,14 +163,22 @@ export function parseWifiScanCsv(content: string): NetworkReading[] {
     const cells = lines[i].split('|')
     if (cells.length < REFERENCE_HEADER.length) {
       throw new CsvImportError(
-        `Linha ${lineNumber}: esperado ao menos ${REFERENCE_HEADER.length} colunas, encontrado ${cells.length}.`
+        `Linha ${lineNumber}: esperado ao menos ${REFERENCE_HEADER.length} colunas, encontrado ${cells.length}.`,
+        'error.csvRowColumns',
+        { line: lineNumber, expected: REFERENCE_HEADER.length, found: cells.length }
       )
     }
     try {
       readings.push(parseRow(cells))
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new CsvImportError(`Linha ${lineNumber}: ${message}`)
+      if (error instanceof CsvImportError) {
+        throw new CsvImportError(
+          `Linha ${lineNumber}: ${error.message}`,
+          'error.csvRowError',
+          { line: lineNumber, reason: error.message }
+        )
+      }
+      throw error
     }
   }
 

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   /** Comprimento atual (metros). 0 = planta ainda sem escala — campo começa vazio pra o usuário informar. */
@@ -28,6 +29,7 @@ export function WallMeasureDialog({
   onConfirm,
   onCancel
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [size, setSize] = useState(initialSize > 0 ? String(roundDisplay(initialSize, sizeUnit)) : '')
   const [thickness, setThickness] = useState(String(initialThickness))
   const [error, setError] = useState<string | null>(null)
@@ -41,8 +43,8 @@ export function WallMeasureDialog({
     if (sizeEditable && sizeRaw !== '' && (!Number.isFinite(sizeValue) || sizeValue <= 0)) {
       setError(
         sizeUnit === 'm' || sizeSetsCalibration
-          ? 'Informe um comprimento maior que zero (metros), ou deixe em branco para só mudar a espessura.'
-          : 'Informe um comprimento maior que zero (px), ou deixe em branco para só mudar a espessura.'
+          ? t('error.wallSizeMeters')
+          : t('error.wallSizePx')
       )
       return
     }
@@ -52,7 +54,7 @@ export function WallMeasureDialog({
       thicknessValue > 30 ||
       !Number.isInteger(thicknessValue)
     ) {
-      setError('Espessura deve ser um inteiro entre 1 e 30.')
+      setError(t('error.wallThicknessRange'))
       return
     }
     onConfirm({
@@ -63,20 +65,20 @@ export function WallMeasureDialog({
   }
 
   const sizeLabel = sizeSetsCalibration
-    ? 'Size — comprimento real desta aresta (m), define a escala da planta'
+    ? t('dialog.wallMeasure.sizeLabelCalibrate')
     : sizeUnit === 'm'
-      ? 'Size — comprimento (m)'
-      : 'Size — comprimento (px da imagem)'
+      ? t('dialog.wallMeasure.sizeLabelM')
+      : t('dialog.wallMeasure.sizeLabelPx')
 
   const thicknessLabel =
     thicknessTargetCount > 1
-      ? `Thickness — espessura (px), aplicada às ${thicknessTargetCount} arestas do grupo`
-      : 'Thickness — espessura do traço (px)'
+      ? t('dialog.wallMeasure.thicknessLabelGroup', { count: thicknessTargetCount })
+      : t('dialog.wallMeasure.thicknessLabelSingle')
 
   return (
     <div className="modal-overlay">
       <form className="modal" onSubmit={handleSubmit}>
-        <h2>Aresta</h2>
+        <h2>{t('dialog.wallMeasure.title')}</h2>
         <label>
           {sizeLabel}
           <input
@@ -85,7 +87,7 @@ export function WallMeasureDialog({
             inputMode="decimal"
             value={size}
             disabled={!sizeEditable}
-            placeholder={sizeSetsCalibration ? 'ex.: 4.5' : undefined}
+            placeholder={sizeSetsCalibration ? t('dialog.wallMeasure.sizePlaceholder') : undefined}
             onChange={(event) => {
               setSize(event.target.value)
               setError(null)
@@ -110,9 +112,9 @@ export function WallMeasureDialog({
         {error && <p className="modal__error">{error}</p>}
         <div className="modal__actions">
           <button type="button" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
-          <button type="submit">Confirmar</button>
+          <button type="submit">{t('common.confirm')}</button>
         </div>
       </form>
     </div>
