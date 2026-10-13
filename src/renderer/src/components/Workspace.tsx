@@ -68,6 +68,13 @@ import {
 } from '../modules/walls/api'
 import { translateShape, updateArcHandle, updateCircleEdge, type Point2D, type ShapeClamp, type ShapeHandleRole } from '../modules/walls/shapes'
 import { Toolbar } from './Toolbar'
+import { ExportDialog } from './ExportDialog'
+import { buildHeatmapFilename, createHeatmapExportCanvas, encodeHeatmapExport, type ExportFormat, type HeatmapExportInput } from '../modules/export/heatmapExporter'
+import { ReportDialog } from './ReportDialog'
+import type { ReportOptions, ReportLabels } from '../modules/export/reportExporter'
+import { buildReportFilename } from '../modules/export/reportData'
+import { countOverlappingRadios, type HeatmapMode } from '../modules/channels/interference'
+import { downloadBlob } from '../lib/downloadFile'
 import { FloorPlanCanvas } from './FloorPlanCanvas'
 import { PointPanel } from './PointPanel'
 import { Legend } from './Legend'
@@ -121,6 +128,9 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
   const [readingsByPoint, setReadingsByPoint] = useState<Map<string, StoredNetworkReading[]>>(new Map())
   const [scanAvailable, setScanAvailable] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>('coverage')
   const [band, setBand] = useState<Band>('all')
   const [calibrating, setCalibrating] = useState(false)
   const [pendingCalibrationPoints, setPendingCalibrationPoints] = useState<Array<{ x: number; y: number }>>([])
@@ -275,7 +285,26 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
     [points, pointReadingById, computeSigmaPx]
   )
 
-  const heatmapInput: HeatmapInput = { points: heatmapPoints }
+  const pointInterferenceById = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const point of points) {
+      const count = countOverlappingRadios(bandFilteredReadings.get(point.id) ?? [], selectedNetworkKey)
+      if (count !== undefined) counts.set(point.id, count)
+    }
+    return counts
+  }, [points, bandFilteredReadings, selectedNetworkKey])
+
+  const interferencePoints = useMemo<WeightedPoint[]>(() => points.flatMap((point) => {
+    const count = pointInterferenceById.get(point.id)
+    if (count === undefined) return []
+    const reading = getStrongestReading(bandFilteredReadings.get(point.id) ?? [])
+    return [{ x: point.x, y: point.y, valueDbm: count, sigma: reading ? computeSigmaPx(reading) : 90 }]
+  }), [points, pointInterferenceById, bandFilteredReadings, computeSigmaPx])
+
+  const heatmapInput = useMemo<HeatmapInput>(() => ({
+    points: showHeatmap ? (heatmapMode === 'coverage' ? heatmapPoints : interferencePoints) : [],
+    mode: heatmapMode
+  }), [showHeatmap, heatmapMode, heatmapPoints, interferencePoints])
 
   /** Um traço por rádio (BSSID) visto em qualquer ponto da planta — ver ChannelChart. Só faz sentido na visão "todas as redes". */
   const channelUsage = useMemo(
@@ -285,6 +314,35 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
 
   const selectedPoint = points.find((point) => point.id === selectedPointId) ?? null
   const selectedPointIndex = selectedPoint ? points.indexOf(selectedPoint) : -1
+
+  function getMapExportInput(): HeatmapExportInput {
+    const networkLabel = isAllNetworks ? t('toolbar.allNetworks') : networkGroups.find((group) => group.key === selectedNetworkKey)?.label ?? t('toolbar.selectNetwork')
+    return {
+      floorPlan, projectName: project.name,
+      filterLabel: `${t(heatmapMode === 'coverage' ? 'interference.coverage' : 'interference.title')} · ${networkLabel} · ${band === 'all' ? t('toolbar.allBands') : band}`,
+      points, readings: pointReadingById, heatmapPoints: heatmapInput.points,
+      mode: heatmapMode, interferenceByPoint: pointInterferenceById,
+      interferenceLabels: [t('interference.low'), t('interference.medium'), t('interference.high')],
+      interferencePointLabels: new Map(Array.from(pointInterferenceById, ([id, count]) => [id, t('interference.marker', { count })])),
+      showImage, showPoints: showMeasurements, showWalls, vertices, walls, shapes
+    }
+  }
+
+  async function handleExportHeatmap(format: ExportFormat): Promise<void> {
+    const date = new Date()
+    const canvas = await createHeatmapExportCanvas(getMapExportInput(), date)
+    const blob = await encodeHeatmapExport(canvas, format)
+    downloadBlob(buildHeatmapFilename(project.name, floorPlan.name, format, date), blob)
+  }
+
+  async function handleGenerateReport(options: ReportOptions): Promise<void> {
+    const { createReportPdf } = await import('../modules/export/reportExporter')
+    const date = new Date()
+    const labels = Object.fromEntries(['title', 'map', 'channels', 'readings', 'notes', 'empty', 'point', 'position', 'signal', 'channel', 'width', 'estimated', 'scope', 'points', 'radios', 'page'].map((key) => [key, t(`report.${key}`)])) as unknown as ReportLabels
+    labels.title = t('report.pdfTitle')
+    const blob = await createReportPdf(getMapExportInput(), bandFilteredReadings, options, labels, date)
+    downloadBlob(buildReportFilename(project.name, floorPlan.name, date), blob)
+  }
 
   async function handleCreatePoint(x: number, y: number): Promise<void> {
     const point = await createPoint(floorPlan.id, x, y)
@@ -820,7 +878,16 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
         onTogglePlacingPoints={handleTogglePlacingPoints}
         onResetPoints={handleResetPoints}
         hasPoints={points.length > 0}
+        onExport={() => setExporting(true)}
+        onReport={() => setReporting(true)}
+        mode={heatmapMode}
+        onModeChange={setHeatmapMode}
       />
+
+      {exporting && <ExportDialog onExport={handleExportHeatmap} onCancel={() => setExporting(false)} />}
+      {reporting && <ReportDialog onGenerate={handleGenerateReport} onCancel={() => setReporting(false)} />}
+
+      {heatmapMode === 'interference' && <p className="workspace__notice">{t('interference.hint')}</p>}
 
       {placingPoints && !calibrating && !wallEditing && (
         <p className="workspace__notice">{t('notice.placingPointsOn')}</p>
@@ -909,7 +976,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
         )
       })()}
 
-      {!isAllNetworks &&
+      {heatmapMode === 'coverage' && !isAllNetworks &&
         selectedNetworkKey &&
         heatmapPoints.length > 0 &&
         heatmapPoints.length < MIN_HEATMAP_POINTS && (
@@ -924,7 +991,8 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
             floorPlan={floorPlan}
             points={points}
             selectedPointId={selectedPointId}
-            heatmapInput={showHeatmap ? heatmapInput : { points: [] }}
+            heatmapInput={heatmapInput}
+            pointInterferenceById={pointInterferenceById}
             pointReadingById={pointReadingById}
             onSelectPoint={selectPoint}
             onCreatePoint={handleCreatePoint}
@@ -974,7 +1042,7 @@ export function Workspace({ project, floorPlan: initialFloorPlan, onFloorPlanUpd
             />
           )}
 
-          {showHeatmap && selectedNetworkKey && <Legend />}
+          {showHeatmap && (selectedNetworkKey || heatmapMode === 'interference') && <Legend mode={heatmapMode} />}
         </div>
 
         <WallEditorPanel

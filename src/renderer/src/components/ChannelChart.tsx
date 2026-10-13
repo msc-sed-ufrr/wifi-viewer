@@ -132,7 +132,7 @@ function layoutBand(entries: ColoredEntry[], axis: number[]): LayoutEntry[] {
   return withGeometry
 }
 
-function BandChart({ band, entries }: { band: '2.4GHz' | '5GHz'; entries: ColoredEntry[] }): JSX.Element {
+export function BandChart({ band, entries }: { band: '2.4GHz' | '5GHz'; entries: ColoredEntry[] }): JSX.Element {
   const { t } = useTranslation()
   const [hoveredBssid, setHoveredBssid] = useState<string | null>(null)
   const axis = buildChannelAxis(band, entries)

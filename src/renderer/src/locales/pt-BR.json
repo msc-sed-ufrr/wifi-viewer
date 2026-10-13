@@ -264,5 +264,51 @@
     "snr": "SNR: {{db}} dB",
     "channel": "Canal: {{channel}}",
     "widthMhz": "Largura: {{mhz}} MHz"
+  },
+  "heatmapExport": {
+    "title": "Exportar mapa",
+    "hint": "Salva a planta inteira com os filtros e camadas visíveis. PNG mantém a resolução da planta; PDF ajusta o mapa a uma página A4.",
+    "format": "Formato",
+    "export": "Exportar",
+    "busy": "Gerando arquivo…",
+    "error": "Não foi possível exportar o mapa. Tente novamente."
+  },
+  "report": {
+    "title": "Gerar relatório",
+    "pdfTitle": "Relatório de levantamento Wi-Fi",
+    "hint": "A capa é sempre incluída. O mapa usa a visualização atual; o gráfico e a tabela incluem todas as redes da banda selecionada.",
+    "sections": "Seções do relatório",
+    "map": "Mapa e legenda",
+    "channels": "Distribuição de canais",
+    "readings": "Leituras por ponto",
+    "notes": "Anotações",
+    "includeNotes": "Incluir anotações",
+    "generate": "Gerar PDF",
+    "busy": "Gerando relatório…",
+    "error": "Não foi possível gerar o relatório. Tente novamente.",
+    "empty": "Não há dados para esta seção.",
+    "point": "Ponto",
+    "position": "Posição",
+    "signal": "Sinal",
+    "channel": "Canal",
+    "width": "Largura",
+    "estimated": "* Sinal estimado a partir da qualidade percentual da fonte.",
+    "scope": "Mapa: filtros e camadas atuais. Gráfico e tabela: todas as redes da banda selecionada. Posições em pixels da imagem original.",
+    "points": "Pontos",
+    "radios": "Rádios (BSSID)",
+    "page": "Página"
+  },
+  "interference": {
+    "view": "Visualização",
+    "coverage": "Cobertura",
+    "title": "Interferência",
+    "low": "1-2 rádios",
+    "medium": "3-4 rádios",
+    "high": "5+ rádios",
+    "radios": "rádios",
+    "marker": "{{count}} rádios",
+    "marker_one": "{{count}} rádio",
+    "marker_other": "{{count}} rádios",
+    "hint": "Sobreposição de canais por rádio (BSSID), estimada entre os pontos medidos. Verde: 1-2; amarelo: 3-4; vermelho: 5+. A rede selecionada mostra sobreposição com ela; Todas as redes mostra o maior grupo sobreposto. Não mede tráfego nem interferência de outras fontes."
   }
 }

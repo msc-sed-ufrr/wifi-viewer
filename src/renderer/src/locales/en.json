@@ -264,5 +264,51 @@
     "snr": "SNR: {{db}} dB",
     "channel": "Channel: {{channel}}",
     "widthMhz": "Width: {{mhz}} MHz"
+  },
+  "heatmapExport": {
+    "title": "Export map",
+    "hint": "Saves the entire floor plan with the current filters and visible layers. PNG preserves floor plan resolution; PDF fits the map on one A4 page.",
+    "format": "Format",
+    "export": "Export",
+    "busy": "Generating file…",
+    "error": "Could not export the map. Please try again."
+  },
+  "report": {
+    "title": "Generate report",
+    "pdfTitle": "Wi-Fi survey report",
+    "hint": "The cover is always included. The map uses the current view; the chart and table include all networks in the selected band.",
+    "sections": "Report sections",
+    "map": "Map and legend",
+    "channels": "Channel distribution",
+    "readings": "Readings by point",
+    "notes": "Notes",
+    "includeNotes": "Include notes",
+    "generate": "Generate PDF",
+    "busy": "Generating report…",
+    "error": "Could not generate the report. Please try again.",
+    "empty": "There is no data for this section.",
+    "point": "Point",
+    "position": "Position",
+    "signal": "Signal",
+    "channel": "Channel",
+    "width": "Width",
+    "estimated": "* Signal estimated from the source quality percentage.",
+    "scope": "Map: current filters and layers. Chart and table: all networks in the selected band. Positions in pixels of the original image.",
+    "points": "Points",
+    "radios": "Radios (BSSID)",
+    "page": "Page"
+  },
+  "interference": {
+    "view": "View",
+    "coverage": "Coverage",
+    "title": "Interference",
+    "low": "1-2 radios",
+    "medium": "3-4 radios",
+    "high": "5+ radios",
+    "radios": "radios",
+    "marker": "{{count}} radios",
+    "marker_one": "{{count}} radio",
+    "marker_other": "{{count}} radios",
+    "hint": "Channel overlap by radio (BSSID), estimated between measured points. Green: 1-2; yellow: 3-4; red: 5+. A selected network shows overlap affecting it; All networks shows the largest overlapping group. Does not measure traffic or interference from other sources."
   }
 }

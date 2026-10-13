@@ -2,7 +2,8 @@ import type { ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FloorPlan } from '../types/domain'
 import { ALL_NETWORKS_KEY, type NetworkGroup, type Band } from '../modules/readings/network'
-import { AddLocationIcon, ResetIcon } from './icons'
+import { AddLocationIcon, DownloadIcon, ResetIcon } from './icons'
+import type { HeatmapMode } from '../modules/channels/interference'
 
 interface Props {
   floorPlan: FloorPlan
@@ -16,6 +17,10 @@ interface Props {
   onTogglePlacingPoints: () => void
   onResetPoints: () => void
   hasPoints: boolean
+  onExport: () => void
+  onReport: () => void
+  mode: HeatmapMode
+  onModeChange: (mode: HeatmapMode) => void
 }
 
 export function Toolbar({
@@ -28,7 +33,11 @@ export function Toolbar({
   placingPoints,
   onTogglePlacingPoints,
   onResetPoints,
-  hasPoints
+  hasPoints,
+  onExport,
+  onReport,
+  mode,
+  onModeChange
 }: Props): JSX.Element {
   const { t } = useTranslation()
 
@@ -45,6 +54,11 @@ export function Toolbar({
       <h1 className="toolbar__title">{floorPlan.name}</h1>
 
       <div className="toolbar__group">
+        <label htmlFor="heatmap-mode">{t('interference.view')}</label>
+        <select id="heatmap-mode" value={mode} onChange={(event) => onModeChange(event.target.value as HeatmapMode)}>
+          <option value="coverage">{t('interference.coverage')}</option>
+          <option value="interference">{t('interference.title')}</option>
+        </select>
         <label htmlFor="network-select">{t('toolbar.network')}</label>
 
         <select id="network-select" value={selectedNetworkKey ?? ''} onChange={handleNetworkChange}>
@@ -71,6 +85,12 @@ export function Toolbar({
       </div>
 
       <div className="toolbar__group">
+        <button type="button" className="toolbar__button" onClick={onExport}>
+          <DownloadIcon width={16} height={16} /> {t('heatmapExport.title')}
+        </button>
+        <button type="button" className="toolbar__button" onClick={onReport}>
+          <DownloadIcon width={16} height={16} /> {t('report.title')}
+        </button>
         <button
           type="button"
           className={`toolbar__button${placingPoints ? ' toolbar__button--active' : ''}`}
