@@ -1728,6 +1728,15 @@ body.theme-dark .modal__actions button.modal__button--danger {
   width: min(640px, 90vw);
 }
 
+.report-dialog { width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.report-dialog fieldset { border: 0; padding: 0; margin: 18px 0; }
+.report-dialog legend { font-weight: 600; margin-bottom: 12px; }
+.report-dialog .report-dialog__check { display: flex; flex-direction: row; align-items: center; gap: 10px; margin: 12px 0; }
+.report-dialog .report-dialog__check input { width: auto; margin: 0; }
+.report-dialog textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px; font: inherit; border: 1px solid #cbd5e1; border-radius: 6px; }
+.legend__category { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend__category > span { width: 14px; height: 14px; border-radius: 3px; }
+
 .align-editor__canvas-wrap {
   position: relative;
   margin: 0 auto;

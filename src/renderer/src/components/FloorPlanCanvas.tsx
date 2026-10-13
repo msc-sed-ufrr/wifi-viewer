@@ -21,6 +21,7 @@ interface Props {
    * é a leitura mais forte daquela rede especificamente.
    */
   pointReadingById: Map<string, StoredNetworkReading>
+  pointInterferenceById?: Map<string, number>
   onSelectPoint: (id: string) => void
   onCreatePoint: (x: number, y: number) => void
   /**
@@ -115,6 +116,7 @@ export function FloorPlanCanvas({
   selectedPointId,
   heatmapInput,
   pointReadingById,
+  pointInterferenceById,
   onSelectPoint,
   onCreatePoint,
   placingPoints,
@@ -408,8 +410,11 @@ export function FloorPlanCanvas({
         ctx.fillText(String(index + 1), x, y)
 
         const reading = pointReadingById.get(point.id)
-        if (reading) {
-          const label = `(${reading.signalDbm})`
+        const count = pointInterferenceById?.get(point.id)
+        const label = heatmapInput.mode === 'interference'
+          ? (count === undefined ? null : t('interference.marker', { count }))
+          : (reading ? `(${reading.signalDbm})` : null)
+        if (label) {
           const labelX = x + POINT_RADIUS + 4
           ctx.font = `${POINT_RADIUS}px sans-serif`
           ctx.textAlign = 'left'
@@ -460,7 +465,10 @@ export function FloorPlanCanvas({
     floorPlan.imageWidth,
     floorPlan.imageHeight,
     showImage,
-    showPoints
+    showPoints,
+    pointInterferenceById,
+    heatmapInput.mode,
+    t
   ])
 
   function toImageCoords(event: MouseEvent<HTMLCanvasElement>): { x: number; y: number } {
@@ -732,6 +740,7 @@ export function FloorPlanCanvas({
                 }}
               >
                 <div className="point-tooltip__title">{t('tooltip.pointTitle', { n: hoveredIndex + 1 })}</div>
+                {heatmapInput.mode === 'interference' && <div>{t('interference.marker', { count: pointInterferenceById?.get(hoveredPoint.id) ?? 0 })}</div>}
                 <div className="point-tooltip__group point-tooltip__network">
                   {getNetworkGroup(hoveredReading).label}
                 </div>

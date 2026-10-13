@@ -43,6 +43,26 @@ npm run test       # testes unitários (Vitest)
 
 O app roda a partir do código-fonte; não há instaladores assinados/notarizados distribuídos (fora de escopo por ora).
 
+### Exportar o mapa como PNG ou PDF
+
+Na toolbar da planta, clique em **Exportar mapa**, escolha **PNG** ou **PDF (A4)** e clique em **Exportar**. O arquivo usa o nome `<projeto>-<planta>-<data>.png` ou `.pdf`.
+
+A exportação inclui a planta inteira, os filtros de rede/banda e as camadas visíveis (imagem, heatmap, pontos numerados com dBm e paredes). A legenda usa a mesma escala de cores do heatmap. Também é possível exportar com o heatmap desligado ou sem leituras; nesse caso, a legenda é omitida. Zoom, rolagem, seleção e controles de edição não aparecem no arquivo.
+
+O PNG preserva os pixels da planta e acrescenta cabeçalho e legenda. O PDF contém a mesma composição em uma página A4, com orientação automática e proporções preservadas.
+
+### Relatório de levantamento em PDF
+
+Clique em **Gerar relatório** na toolbar. A capa inclui projeto, planta, data e resumo de pontos/rádios. Escolha quais seções incluir: mapa com legenda, gráfico de canais, tabela de leituras e anotações opcionais. O mapa segue o modo, filtros e camadas atuais; o gráfico e a tabela incluem todas as redes da banda selecionada. A tabela mantém a numeração dos pontos do mapa e marca com `*` os valores de sinal estimados. Tabelas e anotações longas continuam em páginas A4 adicionais. O arquivo segue `<projeto>-<planta>-relatorio-<data>.pdf`.
+
+### Mapa de sobreposição de canais
+
+No seletor **Visualização**, alterne entre **Cobertura** e **Interferência**. O modo Interferência conta rádios distintos (BSSID) com canais sobrepostos em cada ponto e interpola essa contagem entre os pontos. Verde indica 1-2 rádios, amarelo 3-4 e vermelho 5 ou mais. A legenda e os marcadores passam a mostrar contagens em vez de dBm, inclusive na exportação e no relatório.
+
+**Todas as redes** mostra o maior grupo que compartilha uma faixa de frequência em cada ponto. Selecionar uma rede restringe a análise aos grupos que contêm um rádio dessa rede. O filtro de banda é respeitado; bandas diferentes não são somadas. Pontos sem leituras válidas ficam sem dados, em vez de receber a categoria verde.
+
+O mapa estima sobreposição Wi-Fi a partir dos canais observados; não mede tráfego, ocupação do meio ou interferência não Wi-Fi. Em 2.4 GHz considera o canal primário de 20 MHz, pois as leituras não informam a direção do canal secundário de 40 MHz. Em 5 GHz infere blocos padrão de 40/80/160 MHz quando a largura é conhecida; blocos não reconhecidos usam apenas o primário de 20 MHz.
+
 ### Captura ao vivo por sistema operacional
 
 | SO | Mecanismo | Observações |

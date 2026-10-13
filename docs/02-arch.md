@@ -91,6 +91,20 @@ flowchart TD
     Channels -->|"uso de canal<br/>por rádio/banda"| UI2
 ```
 
+### Exportação de mapa (PNG/PDF)
+
+`Toolbar` abre `ExportDialog`; `Workspace` fornece um snapshot dos pontos, leituras filtradas e camadas visíveis para `modules/export/heatmapExporter.ts`. Um worker dedicado usa o mesmo IDW, paleta e parâmetros de `useHeatmap` (centralizados em `renderSettings.ts`), evitando exportar um bitmap antigo enquanto a interface recalcula um filtro.
+
+O exportador compõe um canvas na resolução da planta, com cabeçalho (projeto, planta, filtros e data), marcadores numerados, paredes persistidas e legenda. PNG usa `toBlob`; PDF carrega `jsPDF` sob demanda e ajusta a composição inteira a uma página A4, com margens e orientação automática. Não há IPC adicional, alteração do IndexedDB nem captura de controles de edição. Workers e bitmaps são liberados ao concluir; erros de geração permitem tentar novamente no diálogo.
+
+### Relatório PDF e sobreposição de canais
+
+`ReportDialog` permite selecionar seções e anotações. `reportExporter.tsx` reutiliza o exportador de mapa e o componente `BandChart` (renderização SVG estática com estilos explícitos), além de gerar a tabela com `reportData.ts`. Páginas A4 são compostas em canvas e gravadas com jsPDF; isso preserva acentos e SSIDs Unicode sem fontes adicionais, mas o texto do PDF é rasterizado. Cabeçalho, margens, numeração, quebra de texto e paginação são independentes do tema/zoom da interface. O módulo de relatório é carregado sob demanda.
+
+`channels/interference.ts` deduplica capturas por BSSID e usa uma varredura dos extremos de frequência para obter o maior grupo que compartilha um intervalo espectral. Com uma rede selecionada, somente grupos contendo um rádio dela são considerados. O cálculo usa canais primários de 20 MHz em 2.4 GHz (direção do secundário ausente) e blocos padrão inferidos em 5 GHz. Referência de canalização: [Cisco Wireless RF Reference Guide](https://www.cisco.com/c/en/us/td/docs/wireless/controller/9800/technical-reference/wireless-rf-reference-guide.html). O resultado representa sobreposição observada, não uma medição de interferência RF ou utilização do meio.
+
+`Workspace` monta pontos IDW com contagens para esse modo. `heatmap.worker.ts` mantém o algoritmo espacial e escolhe a paleta (cobertura dBm ou contagem verde/amarelo/vermelho). A confiança espacial controla a transparência; áreas sem dados não recebem uma classificação. `Legend`, marcadores e exportação usam a escala do modo atual. Requisições do worker incluem um identificador para descartar respostas antigas após mudanças rápidas de filtro, e bitmaps substituídos são liberados.
+
 ### Caminho de geração do heatmap
 
 1. Usuário seleciona uma planta e uma rede (SSID agregado, BSSID específico, ou "todas as redes").
