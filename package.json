@@ -1,6 +1,6 @@
 {
   "name": "wifi-viewer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Heatmap de cobertura Wi-Fi sobreposto à planta de um prédio, para uso pessoal e acadêmico.",
   "author": "Universidade Federal de Roraima (https://ufrr.br)",
   "license": "PolyForm-Noncommercial-1.0.0",
