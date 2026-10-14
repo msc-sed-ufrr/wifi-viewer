@@ -6,7 +6,7 @@ describe('parseMacwifiCliOutput', () => {
     const stdout = JSON.stringify([
       {
         ssid: 'ap01',
-        bssid: '98:E5:5B:17:C0:E3',
+        bssid: '02:00:00:17:C0:E3',
         rssi: -69,
         noise: -97,
         channel: 36,
@@ -22,7 +22,7 @@ describe('parseMacwifiCliOutput', () => {
     expect(parseMacwifiCliOutput(stdout, '2026-07-05T12:00:00Z')).toEqual([
       {
         ssid: 'ap01',
-        bssid: '98:e5:5b:17:c0:e3',
+        bssid: '02:00:00:17:c0:e3',
         signalDbm: -69,
         signalSource: 'measured',
         primaryChannel: 36,
@@ -38,7 +38,7 @@ describe('parseMacwifiCliOutput', () => {
   it('discards remembered-but-out-of-range networks (empty bssid, no real reading)', () => {
     const stdout = JSON.stringify([
       {
-        ssid: 'UFRR-Servidores',
+        ssid: 'Exemplo-Servidores',
         bssid: '',
         rssi: 0,
         noise: 0,
