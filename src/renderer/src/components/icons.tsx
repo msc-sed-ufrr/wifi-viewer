@@ -4,6 +4,9 @@ import type { ReactNode, SVGProps } from 'react'
  * Ícones do Material Symbols (Google, https://fonts.google.com/icons), copiados localmente como
  * SVG — sem link/CDN em runtime (app desktop offline). Herdam a cor do texto via `currentColor`;
  * tamanho default 20px, sobrescrevível via `width`/`height` no uso.
+ *
+ * Material Symbols: Copyright Google LLC, Apache License 2.0 — atribuição em NOTICE e texto da
+ * licença em licenses/Apache-2.0.txt.
  */
 function Icon({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }): JSX.Element {
   return (

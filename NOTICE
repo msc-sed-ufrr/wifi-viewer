@@ -1,0 +1,47 @@
+WiFi Viewer
+Copyright (c) 2026 Universidade Federal de Roraima (https://ufrr.br)
+
+Licenciado sob a PolyForm Noncommercial License 1.0.0 (ver LICENSE).
+Autores listados em AUTHORS.
+
+Este produto inclui componentes de terceiros, listados abaixo com suas
+respectivas licenças. Esses componentes não são cobertos pela licença do
+WiFi Viewer e continuam sob os termos de seus autores originais.
+
+--------------------------------------------------------------------------------
+Material Symbols
+Copyright Google LLC
+https://fonts.google.com/icons
+https://github.com/google/material-design-icons
+Licença: Apache License 2.0 (texto completo em licenses/Apache-2.0.txt)
+
+Paths SVG dos ícones do Material Symbols copiados para o código-fonte:
+  - src/renderer/src/components/icons.tsx (ícones da interface)
+  - src/renderer/src/styles/index.css (cursor de marcação, ícone "Location On")
+
+--------------------------------------------------------------------------------
+Ícone do aplicativo
+  - resources/icon.png
+  - src/renderer/public/favicon.png
+
+Imagem gerada por ferramenta de inteligência artificial generativa, a partir de
+instruções da equipe e inspirada no conteúdo do próprio WiFi Viewer (planta
+baixa com heatmap de cobertura). Não incorpora obra de terceiros conhecida.
+
+--------------------------------------------------------------------------------
+Dependências npm
+
+As bibliotecas declaradas em package.json (React, i18next, idb, jsPDF,
+Zustand, Electron, entre outras) são obtidas via npm, não estão incluídas
+neste repositório e são distribuídas sob suas próprias licenças, todas
+permissivas (MIT, ISC, Apache-2.0 e similares). As versões exatas estão
+fixadas em package-lock.json.
+
+--------------------------------------------------------------------------------
+Ferramentas externas (não distribuídas com o WiFi Viewer)
+
+A captura ao vivo invoca, como processo externo já instalado no sistema do
+usuário, as seguintes ferramentas, sem incorporar seu código:
+  - netsh (Microsoft Windows)
+  - nmcli (NetworkManager, Linux)
+  - macwifi-cli (https://github.com/jaisonerick/macwifi-cli, macOS)

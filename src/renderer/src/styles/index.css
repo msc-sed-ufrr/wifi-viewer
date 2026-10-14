@@ -594,35 +594,112 @@ body {
   min-height: 0;
 }
 
+/*
+ * Toolbar responsiva via container query (largura da própria barra, não da janela — a sidebar
+ * ocupa parte da tela). Larga: uma linha (título | filtros | ações). Média: ações sobem para a
+ * linha do título e os filtros descem. Estreita: botões viram só ícone (tooltip via title).
+ */
 .toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  padding: 12px 16px;
+  container-type: inline-size;
+  padding: 10px 16px;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.toolbar__title {
-  margin: 0;
-  font-size: 16px;
-  flex-shrink: 0;
+.toolbar__inner {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  grid-template-areas: 'title filters actions';
+  align-items: center;
+  gap: 8px 16px;
 }
 
-.toolbar__group {
+.toolbar__title {
+  grid-area: title;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar__filters {
+  grid-area: filters;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px 16px;
+  min-width: 0;
   font-size: 13px;
 }
 
-.toolbar__group select {
+/* Rótulo + select como unidade: nunca quebram separados. */
+.toolbar__field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.toolbar__field label {
+  white-space: nowrap;
+  color: #4b5563;
+}
+
+.toolbar__field select {
+  min-width: 0;
   padding: 6px;
   border-radius: 6px;
   border: 1px solid #d1d5db;
+  text-overflow: ellipsis;
+}
+
+/* SSIDs longos não podem esticar a barra inteira. */
+.toolbar__field--network select {
+  width: 220px;
+}
+
+.toolbar__actions {
+  grid-area: actions;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.toolbar__button-label {
+  white-space: nowrap;
+}
+
+@container (max-width: 1240px) {
+  .toolbar__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title actions'
+      'filters filters';
+  }
+}
+
+@container (max-width: 760px) {
+  .toolbar__button {
+    padding: 6px 8px;
+  }
+
+  .toolbar__button-label {
+    display: none;
+  }
+}
+
+@container (max-width: 560px) {
+  .toolbar__field {
+    flex: 1 1 160px;
+  }
+
+  .toolbar__field select,
+  .toolbar__field--network select {
+    flex: 1;
+    width: auto;
+  }
 }
 
 .toolbar__button {
@@ -1127,7 +1204,8 @@ body {
   cursor: default;
 }
 
-/* Cursor custom: Material "Location On" — hotspot na ponta inferior do pin (12 23). */
+/* Cursor custom: Material "Location On" — hotspot na ponta inferior do pin (12 23).
+   Material Symbols (Google LLC, Apache-2.0) — ver NOTICE. */
 .floor-plan-canvas__surface--placing {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 -960 960 960'%3E%3Cpath fill='%231e40af' stroke='%23ffffff' stroke-width='24' paint-order='stroke' d='M536.5-503.5Q560-527 560-560t-23.5-56.5Q513-640 480-640t-56.5 23.5Q400-593 400-560t23.5 56.5Q447-480 480-480t56.5-23.5ZM480-186q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z'/%3E%3C/svg%3E") 12 23, crosshair;
 }
@@ -1727,6 +1805,15 @@ body.theme-dark .modal__actions button.modal__button--danger {
 .modal--wide {
   width: min(640px, 90vw);
 }
+
+.report-dialog { width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.report-dialog fieldset { border: 0; padding: 0; margin: 18px 0; }
+.report-dialog legend { font-weight: 600; margin-bottom: 12px; }
+.report-dialog .report-dialog__check { display: flex; flex-direction: row; align-items: center; gap: 10px; margin: 12px 0; }
+.report-dialog .report-dialog__check input { width: auto; margin: 0; }
+.report-dialog textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px; font: inherit; border: 1px solid #cbd5e1; border-radius: 6px; }
+.legend__category { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend__category > span { width: 14px; height: 14px; border-radius: 3px; }
 
 .align-editor__canvas-wrap {
   position: relative;

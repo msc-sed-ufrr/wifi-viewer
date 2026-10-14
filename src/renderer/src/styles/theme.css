@@ -62,6 +62,10 @@ body {
     background: #1d4ed8;
     color: #ffffff;
   }
+
+  body.theme-dark .toolbar__field label {
+    color: #9ca3af;
+  }
   
   body.theme-dark .workspace__notice {
     background: #1e3a8a;

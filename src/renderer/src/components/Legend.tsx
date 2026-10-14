@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { COLOR_STOP_DBMS, dbmToColor } from '../modules/heatmap/colorScale'
+import { INTERFERENCE_COLORS, type HeatmapMode } from '../modules/channels/interference'
 
 /** Amostra os mesmos stops de `dbmToColor` (pior → melhor sinal) pra a barra nunca ficar fora de sincronia com a cor real do heatmap. */
 function buildGradientCss(): string {
@@ -17,7 +18,7 @@ function buildGradientCss(): string {
  * Legenda de leitura do heatmap: escala dBm→cor — ver PRD, UC-005. Clicável para
  * ampliar: a versão compacta padrão fica pequena demais pra ler os extremos.
  */
-export function Legend(): JSX.Element {
+export function Legend({ mode = 'coverage' }: { mode?: HeatmapMode }): JSX.Element {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
@@ -43,9 +44,11 @@ export function Legend(): JSX.Element {
 
   return (
     <div className={`legend legend--gradient${expanded ? ' legend--expanded' : ''}`} {...sharedProps}>
-      <span>-90dBm</span>
-      <span className="legend__bar" style={{ background: buildGradientCss() }} />
-      <span>-30dBm</span>
+      {mode === 'interference' ? INTERFERENCE_COLORS.map((color, index) => (
+        <span className="legend__category" key={color}>
+          <span style={{ background: color }} />{t(['interference.low', 'interference.medium', 'interference.high'][index])}
+        </span>
+      )) : <><span>-90dBm</span><span className="legend__bar" style={{ background: buildGradientCss() }} /><span>-30dBm</span></>}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 ## 1. Contexto
 
-WiFi Viewer é um aplicativo desktop (Electron) para uso pessoal que transforma leituras de varredura Wi-Fi (importadas de arquivos de scan ou capturadas ao vivo) em um **heatmap de cobertura** sobreposto à planta de um prédio. O usuário marca manualmente, sobre a imagem da planta, o ponto onde cada leitura está sendo coletada; o sistema interpola essas leituras para gerar mapas de calor por rede (SSID/BSSID), permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes — de forma semelhante a ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso acadêmico.
+WiFi Viewer é um aplicativo desktop (Electron) para uso pessoal e acadêmico que transforma leituras de varredura Wi-Fi (importadas de arquivos de scan ou capturadas ao vivo) em um **heatmap de cobertura** sobreposto à planta de um prédio. O usuário marca manualmente, sobre a imagem da planta, o ponto onde cada leitura está sendo coletada; o sistema interpola essas leituras para gerar mapas de calor por rede (SSID/BSSID), permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes — de forma semelhante a ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso acadêmico.
 
 WiFi Viewer **não** é uma ferramenta de administração de rede: não configura, reinicia ou gerencia access points; **não** realiza posicionamento indoor automático (GPS/BLE/triangulação); **não** é um produto multiusuário/corporativo com contas e permissões; e **não** oferece monitoramento contínuo em tempo real com alertas.
 

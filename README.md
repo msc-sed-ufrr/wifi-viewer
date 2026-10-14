@@ -1,20 +1,23 @@
 # WiFi Viewer
 
-Aplicativo desktop (Electron) para uso individual e acadêmico que transforma leituras de varredura Wi-Fi — importadas de arquivos de scan ou capturadas ao vivo — em um **heatmap de cobertura** sobreposto à planta de um prédio. Você marca manualmente, sobre a imagem da planta, o ponto onde cada leitura foi coletada; o app interpola essas leituras para gerar mapas de calor por rede, permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes.
+Aplicativo desktop (Electron) para uso pessoal e acadêmico que transforma leituras de varredura Wi-Fi — importadas de arquivos de scan ou capturadas ao vivo — em um **heatmap de cobertura** sobreposto à planta de um prédio. Você marca manualmente, sobre a imagem da planta, o ponto onde cada leitura foi coletada; o app interpola essas leituras para gerar mapas de calor por rede, permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes.
 
-Funciona de forma parecida com ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso individual/acadêmico — sem conta, sem nuvem, sem custo.
+Funciona de forma parecida com ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso pessoal e acadêmico — sem conta, sem nuvem, sem custo.
 
 ![Heatmap do 1º piso do CIT - UFRR filtrado para a banda 2.4GHz](docs/images/cit-piso1-heatmap-2-4ghz.png)
 
 
 ## O que o app faz
 
-- **Captura ao vivo** da varredura Wi-Fi nativa do sistema operacional (Windows, Linux e macOS), sem depender de processos externos.
-- **Importação de arquivo de scan** (CSV no formato de referência) associado a um ponto físico da planta.
+- **Captura ao vivo** da varredura Wi-Fi do sistema operacional (Windows, Linux e macOS), via as ferramentas de varredura de cada SO (ver tabela abaixo).
+- **Importação de arquivo de scan** em CSV (formato de referência, NetSpot, Acrylic ou genérico com mapeamento de colunas) associado a um ponto físico da planta, e exportação das leituras em CSV.
 - **Heatmap de força de sinal (dBm)** por rede (SSID) ou por rádio/banda individual (BSSID), sobreposto à imagem da planta.
 - **Visão de canais/interferência**, evidenciando sobreposição de canais e conflitos entre redes nas bandas 2.4GHz e 5GHz.
 - **Múltiplas plantas** (por prédio ou por andar) dentro de um mesmo levantamento, com navegação por sidebar.
 - **Calibração de escala** opcional (dois cliques + distância real) para heatmap espacialmente preciso, com réguas em metros.
+- **Editor de paredes** sobre a planta (CAD simplificado).
+- **Exportação de mapas** em PNG/PDF e **relatórios em PDF** com gráficos de canais, tabelas e anotações.
+- Interface em português e inglês, com tema claro e escuro.
 
 O que o app **não** faz, por decisão deliberada: administração de rede (configurar/reiniciar APs), posicionamento indoor automático (GPS/BLE/triangulação), uso multiusuário/corporativo, ou monitoramento contínuo com alertas. Detalhes em [Fora de Escopo](docs/01-prd.md#11-fora-de-escopo).
 
@@ -43,6 +46,26 @@ npm run test       # testes unitários (Vitest)
 
 O app roda a partir do código-fonte; não há instaladores assinados/notarizados distribuídos (fora de escopo por ora).
 
+### Exportar o mapa como PNG ou PDF
+
+Na toolbar da planta, clique em **Exportar mapa**, escolha **PNG** ou **PDF (A4)** e clique em **Exportar**. O arquivo usa o nome `<projeto>-<planta>-<data>.png` ou `.pdf`.
+
+A exportação inclui a planta inteira, os filtros de rede/banda e as camadas visíveis (imagem, heatmap, pontos numerados com dBm e paredes). A legenda usa a mesma escala de cores do heatmap. Também é possível exportar com o heatmap desligado ou sem leituras; nesse caso, a legenda é omitida. Zoom, rolagem, seleção e controles de edição não aparecem no arquivo.
+
+O PNG preserva os pixels da planta e acrescenta cabeçalho e legenda. O PDF contém a mesma composição em uma página A4, com orientação automática e proporções preservadas.
+
+### Relatório de levantamento em PDF
+
+Clique em **Gerar relatório** na toolbar. A capa inclui projeto, planta, data e resumo de pontos/rádios. Escolha quais seções incluir: mapa com legenda, gráfico de canais, tabela de leituras e anotações opcionais. O mapa segue o modo, filtros e camadas atuais; o gráfico e a tabela incluem todas as redes da banda selecionada. A tabela mantém a numeração dos pontos do mapa e marca com `*` os valores de sinal estimados. Tabelas e anotações longas continuam em páginas A4 adicionais. O arquivo segue `<projeto>-<planta>-relatorio-<data>.pdf`.
+
+### Mapa de sobreposição de canais
+
+No seletor **Visualização**, alterne entre **Cobertura** e **Interferência**. O modo Interferência conta rádios distintos (BSSID) com canais sobrepostos em cada ponto e interpola essa contagem entre os pontos. Verde indica 1-2 rádios, amarelo 3-4 e vermelho 5 ou mais. A legenda e os marcadores passam a mostrar contagens em vez de dBm, inclusive na exportação e no relatório.
+
+**Todas as redes** mostra o maior grupo que compartilha uma faixa de frequência em cada ponto. Selecionar uma rede restringe a análise aos grupos que contêm um rádio dessa rede. O filtro de banda é respeitado; bandas diferentes não são somadas. Pontos sem leituras válidas ficam sem dados, em vez de receber a categoria verde.
+
+O mapa estima sobreposição Wi-Fi a partir dos canais observados; não mede tráfego, ocupação do meio ou interferência não Wi-Fi. Em 2.4 GHz considera o canal primário de 20 MHz, pois as leituras não informam a direção do canal secundário de 40 MHz. Em 5 GHz infere blocos padrão de 40/80/160 MHz quando a largura é conhecida; blocos não reconhecidos usam apenas o primário de 20 MHz.
+
 ### Captura ao vivo por sistema operacional
 
 | SO | Mecanismo | Observações |
@@ -62,6 +85,16 @@ Se o mecanismo de varredura não estiver disponível no seu sistema, o app orien
 
 ## Estado atual
 
-Projeto em fase de POC (Prova de Conceito), funcional de ponta a ponta: criação de levantamento, upload de planta, importação de CSV, marcação/remoção de pontos, captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes", filtro por banda, calibração de escala e navegação entre múltiplos levantamentos/plantas. Testado manualmente de ponta a ponta.
+Aplicativo funcional de ponta a ponta, destinado a uso pessoal e acadêmico: levantamentos com múltiplas plantas, marcação e reposicionamento de pontos, importação/exportação de CSV, captura ao vivo nas três plataformas, heatmap por rede, por BSSID e por "todas as redes", filtro por banda, calibração de escala, editor de paredes, visão de canais/interferência e exportação de mapas e relatórios em PNG/PDF.
 
-Detalhes de escopo, blockers e roadmap em [docs/01-prd.md](docs/01-prd.md#5-escopo).
+Detalhes de escopo e roadmap em [docs/01-prd.md](docs/01-prd.md#9-roadmap).
+
+## Autores
+
+Desenvolvido no Programa de Pós-Graduação em Computação Aplicada (PPCA) da Universidade Federal de Roraima (UFRR). Lista completa de autores em [AUTHORS](AUTHORS).
+
+## Licença
+
+Copyright (c) 2026 Universidade Federal de Roraima. Distribuído sob a [PolyForm Noncommercial License 1.0.0](LICENSE): uso, modificação e redistribuição livres para fins não comerciais — uso pessoal, ensino e pesquisa. Uso comercial requer licença específica da UFRR.
+
+Componentes de terceiros (ícones Material Symbols, Apache-2.0) e a origem do ícone do aplicativo estão descritos em [NOTICE](NOTICE).
