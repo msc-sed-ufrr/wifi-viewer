@@ -18,8 +18,8 @@ function makeReading(overrides: Partial<StoredNetworkReading> = {}): StoredNetwo
   return {
     id: crypto.randomUUID(),
     pointId: 'point-1',
-    ssid: 'TP-Link_32BB',
-    bssid: '50:91:e3:b0:32:bb',
+    ssid: 'Exemplo_32BB',
+    bssid: '02:00:00:aa:32:bb',
     signalDbm: -89,
     signalSource: 'measured',
     primaryChannel: 11,

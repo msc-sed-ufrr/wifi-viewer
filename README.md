@@ -1,20 +1,23 @@
 # WiFi Viewer
 
-Aplicativo desktop (Electron) para uso individual e acadêmico que transforma leituras de varredura Wi-Fi — importadas de arquivos de scan ou capturadas ao vivo — em um **heatmap de cobertura** sobreposto à planta de um prédio. Você marca manualmente, sobre a imagem da planta, o ponto onde cada leitura foi coletada; o app interpola essas leituras para gerar mapas de calor por rede, permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes.
+Aplicativo desktop (Electron) para uso pessoal e acadêmico que transforma leituras de varredura Wi-Fi — importadas de arquivos de scan ou capturadas ao vivo — em um **heatmap de cobertura** sobreposto à planta de um prédio. Você marca manualmente, sobre a imagem da planta, o ponto onde cada leitura foi coletada; o app interpola essas leituras para gerar mapas de calor por rede, permitindo enxergar zonas de sinal fraco, sobreposição de canais e redes concorrentes.
 
-Funciona de forma parecida com ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso individual/acadêmico — sem conta, sem nuvem, sem custo.
+Funciona de forma parecida com ferramentas de site survey como NetSpot ou Ekahau, porém com escopo simplificado para uso pessoal e acadêmico — sem conta, sem nuvem, sem custo.
 
 ![Heatmap do 1º piso do CIT - UFRR filtrado para a banda 2.4GHz](docs/images/cit-piso1-heatmap-2-4ghz.png)
 
 
 ## O que o app faz
 
-- **Captura ao vivo** da varredura Wi-Fi nativa do sistema operacional (Windows, Linux e macOS), sem depender de processos externos.
-- **Importação de arquivo de scan** (CSV no formato de referência) associado a um ponto físico da planta.
+- **Captura ao vivo** da varredura Wi-Fi do sistema operacional (Windows, Linux e macOS), via as ferramentas de varredura de cada SO (ver tabela abaixo).
+- **Importação de arquivo de scan** em CSV (formato de referência, NetSpot, Acrylic ou genérico com mapeamento de colunas) associado a um ponto físico da planta, e exportação das leituras em CSV.
 - **Heatmap de força de sinal (dBm)** por rede (SSID) ou por rádio/banda individual (BSSID), sobreposto à imagem da planta.
 - **Visão de canais/interferência**, evidenciando sobreposição de canais e conflitos entre redes nas bandas 2.4GHz e 5GHz.
 - **Múltiplas plantas** (por prédio ou por andar) dentro de um mesmo levantamento, com navegação por sidebar.
 - **Calibração de escala** opcional (dois cliques + distância real) para heatmap espacialmente preciso, com réguas em metros.
+- **Editor de paredes** sobre a planta (CAD simplificado).
+- **Exportação de mapas** em PNG/PDF e **relatórios em PDF** com gráficos de canais, tabelas e anotações.
+- Interface em português e inglês, com tema claro e escuro.
 
 O que o app **não** faz, por decisão deliberada: administração de rede (configurar/reiniciar APs), posicionamento indoor automático (GPS/BLE/triangulação), uso multiusuário/corporativo, ou monitoramento contínuo com alertas. Detalhes em [Fora de Escopo](docs/01-prd.md#11-fora-de-escopo).
 
@@ -82,6 +85,16 @@ Se o mecanismo de varredura não estiver disponível no seu sistema, o app orien
 
 ## Estado atual
 
-Projeto em fase de POC (Prova de Conceito), funcional de ponta a ponta: criação de levantamento, upload de planta, importação de CSV, marcação/remoção de pontos, captura ao vivo nas três plataformas, heatmap por rede única e por "todas as redes", filtro por banda, calibração de escala e navegação entre múltiplos levantamentos/plantas. Testado manualmente de ponta a ponta.
+Aplicativo funcional de ponta a ponta, destinado a uso pessoal e acadêmico: levantamentos com múltiplas plantas, marcação e reposicionamento de pontos, importação/exportação de CSV, captura ao vivo nas três plataformas, heatmap por rede, por BSSID e por "todas as redes", filtro por banda, calibração de escala, editor de paredes, visão de canais/interferência e exportação de mapas e relatórios em PNG/PDF.
 
-Detalhes de escopo, blockers e roadmap em [docs/01-prd.md](docs/01-prd.md#5-escopo).
+Detalhes de escopo e roadmap em [docs/01-prd.md](docs/01-prd.md#9-roadmap).
+
+## Autores
+
+Desenvolvido no Programa de Pós-Graduação em Computação Aplicada (PPCA) da Universidade Federal de Roraima (UFRR). Lista completa de autores em [AUTHORS](AUTHORS).
+
+## Licença
+
+Copyright (c) 2026 Universidade Federal de Roraima. Distribuído sob a [PolyForm Noncommercial License 1.0.0](LICENSE): uso, modificação e redistribuição livres para fins não comerciais — uso pessoal, ensino e pesquisa. Uso comercial requer licença específica da UFRR.
+
+Componentes de terceiros (ícones Material Symbols, Apache-2.0) e a origem do ícone do aplicativo estão descritos em [NOTICE](NOTICE).
